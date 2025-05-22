@@ -8,6 +8,8 @@ module org.example.frontend {
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.bootstrapfx.core;
 
-    opens org.example.frontend to javafx.fxml;
-    exports org.example.frontend;
+    exports org.example.frontend.app;
+    opens org.example.frontend.app to javafx.fxml;
+    exports org.example.frontend.controller;
+    opens org.example.frontend.controller to javafx.fxml;
 }
