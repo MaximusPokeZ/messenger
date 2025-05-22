@@ -1,0 +1,34 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/messenger_db
+    username: af
+    password: af
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true  # (http://localhost:8080/h2-console)
+      path: /h2-console
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  security:
+    user:
+      name: admin  # ????????? ???????????? (???????????)
+      password: "{noop}admin"
+
+jwt:
+  secret: "dGhpcy1pcy1zZWNyZXQta2V5LWZvci1qd3Qtc2lnbmluZy0xMjM0NTY3ODkw"  # Base64
+  expiration-ms: 86400000  # 24 ????
+
+logging:
+  level:
+    org.springframework.security: INFO
