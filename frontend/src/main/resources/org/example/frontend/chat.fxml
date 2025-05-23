@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="10" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.frontend.ChatController">
+    <ListView fx:id="messageList" VBox.vgrow="ALWAYS"/>
+    <HBox spacing="10">
+        <TextField fx:id="inputField" HBox.hgrow="ALWAYS"/>
+        <Button text="Send" onAction="#handleSend"/>
+    </HBox>
+</VBox>
