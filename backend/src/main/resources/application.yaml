@@ -1,7 +1,5 @@
 server:
   port: 8080
-  servlet:
-    context-path: /api
 
 spring:
   datasource:
@@ -22,13 +20,22 @@ spring:
 
   security:
     user:
-      name: admin  # ????????? ???????????? (???????????)
+      name: admin
       password: "{noop}admin"
 
 jwt:
-  secret: "dGhpcy1pcy1zZWNyZXQta2V5LWZvci1qd3Qtc2lnbmluZy0xMjM0NTY3ODkw"  # Base64
-  expiration-ms: 86400000  # 24 ????
+  secret: "dGhpcy1pcy1zZWNyZXQta2V5LWZvci1qd3Qtc2lnbmluZy0xMjM0NTY3ODkw"
+  expiration-ms: 1440m
+  issuer: server_back
 
 logging:
   level:
+    io.grpc: DEBUG
     org.springframework.security: INFO
+    root: info
+
+grpc:
+  server:
+    port: 50051
+    security:
+      enabled: false

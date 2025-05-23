@@ -6,6 +6,7 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Scanner;
 
 public class HelloApplication extends Application {
@@ -18,7 +19,9 @@ public class HelloApplication extends Application {
         Scanner scanner = new Scanner(System.in);
         System.out.println("введите порт: ");
         int port = scanner.nextInt();
+
         scanner.close();
+
 
         controller.startServer(port);
 

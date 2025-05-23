@@ -1,13 +1,16 @@
 package org.example.frontend;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.FileChooser;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.List;
 
 public class HelloController {
     @FXML private TextArea chatArea;
