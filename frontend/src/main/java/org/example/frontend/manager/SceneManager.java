@@ -5,11 +5,18 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.util.Objects;
 
 public class SceneManager {
+
+  private SceneManager () {}
+
+  @Getter
+  @Setter
   private static Stage currentStage;
 
   public static void switchToLoginScene() throws IOException {
@@ -33,7 +40,8 @@ public class SceneManager {
     FXMLLoader fxmlLoader = new FXMLLoader(SceneManager.class.getResource(fxmlPath));
     Scene scene = new Scene(fxmlLoader.load(), width, height);
 
-    // TODO: добавить css
+    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+    scene.getStylesheets().add(stylesPath);
 
     currentStage.setTitle(title);
     currentStage.setScene(scene);
@@ -43,11 +51,4 @@ public class SceneManager {
     currentStage.centerOnScreen();
   }
 
-  public static Stage getCurrentStage() {
-    return currentStage;
-  }
-
-  public static void setCurrentStage(Stage stage) {
-    currentStage = stage;
-  }
 }
