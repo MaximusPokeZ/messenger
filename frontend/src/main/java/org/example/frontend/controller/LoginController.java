@@ -80,6 +80,7 @@ public class LoginController {
                     log.info("JWT received");
 
                     JwtStorage.setToken(token);
+                    JwtStorage.setUsername(username);
 
                     // TODO: перейти на главную сцену
 

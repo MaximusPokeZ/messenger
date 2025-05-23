@@ -32,6 +32,10 @@ public class SceneManager {
     switchScene("/view/register.fxml", "Super-Secure-Chat - Register", 700, 700);
   }
 
+  public static void switchToMainScene() throws IOException {
+    switchScene("/view/main-chat.fxml", "Super-Secure-Chat - Main", 1100, 700);
+  }
+
   private static void switchScene(String fxmlPath, String title, double width , double height) throws IOException {
     if (currentStage == null) {
       throw new RuntimeException("Current stage not set need call setCurrentStage() first");

@@ -9,4 +9,11 @@ public class JwtStorage {
     JwtStorage.token = token;
   }
 
+  @Getter
+  private static String username;
+  public static void setUsername(String username) {
+    JwtStorage.username = username;
+  }
+
+  private JwtStorage() {}
 }
