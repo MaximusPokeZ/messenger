@@ -9,10 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChatItem {
-  private int id;
-  private String chatName;
+public class ChatRoom {
+  private String roomId;
+  private String otherUser;
   private String lastMessage;
-  private String lastMessageTime;
-  private boolean read;
+  private long lastMessageTime;
 }

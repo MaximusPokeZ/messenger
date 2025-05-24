@@ -8,8 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.model.JwtStorage;
-import org.example.frontend.model.main.ChatItem;
+import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.Message;
 import org.example.frontend.model.main.User;
 
@@ -29,7 +28,7 @@ public class MainChatController {
   @FXML
   private Button searchButton;
   @FXML
-  private ListView<ChatItem> chatListView;
+  private ListView<ChatRoom> chatListView;
   @FXML
   private Label chatTitleLabel;
   @FXML
@@ -49,9 +48,9 @@ public class MainChatController {
   @FXML
   private Button closeSearchButton;
 
-  private ChatItem currentChat;
+  private ChatRoom currentChat;
 
-  private List<ChatItem> chatItems;
+  private List<ChatRoom> chatRooms;
 
   private String currentUserName = "Max";
 
@@ -62,12 +61,12 @@ public class MainChatController {
   }
 
   private void setupUI() {
-    currentUserName = JwtStorage.getUsername();
+    // currentUserName = JwtStorage.getUsername();
     userLabel.setText("User: " + currentUserName);
 
-    chatListView.setCellFactory(cell -> new ListCell<ChatItem>() {
+    chatListView.setCellFactory(cell -> new ListCell<ChatRoom>() {
       @Override
-      protected void updateItem(ChatItem item, boolean empty) {
+      protected void updateItem(ChatRoom item, boolean empty) {
         super.updateItem(item, empty);
         if (empty || item == null) {
           setText(null);
@@ -75,16 +74,16 @@ public class MainChatController {
         } else {
           VBox vBox = new VBox(2);
 
-          Label nameLabel = new Label(item.getChatName());
-          nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+//          Label nameLabel = new Label(item.getChatName());
+//          nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+//
+//          Label lastMessageLabel = new Label(item.getLastMessage());
+//          lastMessageLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
+//
+//          Label timeLabel = new Label(item.getLastMessageTime());
+//          timeLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
 
-          Label lastMessageLabel = new Label(item.getLastMessage());
-          lastMessageLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
-
-          Label timeLabel = new Label(item.getLastMessageTime());
-          timeLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
-
-          vBox.getChildren().addAll(nameLabel, lastMessageLabel, timeLabel);
+//          vBox.getChildren().addAll(nameLabel, lastMessageLabel, timeLabel);
           setGraphic(vBox);
         }
       }
@@ -110,12 +109,12 @@ public class MainChatController {
   private void loadUserChats() {
     // TODO: загрузить чаты с сервера
 
-    chatItems = new ArrayList<>();
-    chatItems.add(new ChatItem(1, "Алиса", "Привет! Как дела?", "15:30", true));
-    chatItems.add(new ChatItem(2, "Боб", "Увидимся завтра", "14:22", false));
-    chatItems.add(new ChatItem(3, "Кэрол", "Спасибо за помощь!", "13:45", true));
+//    chatRooms = new ArrayList<>();
+//    chatRooms.add(new ChatRoom(1, "Алиса", "Привет! Как дела?", "15:30"));
+//    chatRooms.add(new ChatRoom(2, "Боб", "Увидимся завтра", "14:22"));
+//    chatRooms.add(new ChatRoom(3, "Кэрол", "Спасибо за помощь!", "13:45"));
 
-    chatListView.getItems().setAll(chatItems);
+    chatListView.getItems().setAll(chatRooms);
   }
 
   private void setupEventHandlers() {
@@ -136,15 +135,14 @@ public class MainChatController {
     });
   }
 
-  private void selectChat(ChatItem chat) {
+  private void selectChat(ChatRoom chat) {
     currentChat = chat;
-    chatTitleLabel.setText(chat.getChatName());
-    chatStatusLabel.setText("online"); // TODO: получать реальный статус
-
-    messageInputField.setDisable(false);
-    sendButton.setDisable(false);
-
-    loadChatMessages(String.valueOf(chat.getId())); // TODO: подумать над id чата
+//    chatTitleLabel.setText(chat.getChatName());
+//
+//    messageInputField.setDisable(false);
+//    sendButton.setDisable(false);
+//
+//    loadChatMessages(String.valueOf(chat.getId())); // TODO: подумать над id чата
   }
 
   private void loadChatMessages(String chatId) {
@@ -152,15 +150,15 @@ public class MainChatController {
 
     messagesContainer.getChildren().clear();
 
-    List<Message> messages = new ArrayList<>();
-    messages.add(new Message("1", "Алиса", "Привет! Как твои дела?", LocalDateTime.now().minusHours(2), "id_1"));
-    messages.add(new Message("2", currentUserName, "Привет! Все отлично, спасибо!", LocalDateTime.now().minusHours(1), "id_2"));
-    messages.add(new Message("3", "Алиса", "Рад слышать! Что планируешь на выходные?", LocalDateTime.now().minusMinutes(30), "id_3"));
-    messages.add(new Message("4", currentUserName, "Думаю погулять в парке, если погода будет хорошая", LocalDateTime.now().minusMinutes(15), "id_4"));
+//    List<Message> messages = new ArrayList<>();
+//    messages.add(new Message("1", "Алиса", "Привет! Как твои дела?", LocalDateTime.now().minusHours(2), "id_1"));
+//    messages.add(new Message("2", currentUserName, "Привет! Все отлично, спасибо!", LocalDateTime.now().minusHours(1), "id_2"));
+//    messages.add(new Message("3", "Алиса", "Рад слышать! Что планируешь на выходные?", LocalDateTime.now().minusMinutes(30), "id_3"));
+//    messages.add(new Message("4", currentUserName, "Думаю погулять в парке, если погода будет хорошая", LocalDateTime.now().minusMinutes(15), "id_4"));
 
-    for (Message message : messages) {
-      addMessageToUI(message);
-    }
+//    for (Message message : messages) {
+//      addMessageToUI(message);
+//    }
   }
 
   private void addMessageToUI(Message message) {
@@ -171,12 +169,12 @@ public class MainChatController {
     messageText.setWrapText(true);
     messageText.setMaxWidth(300);
 
-    Label timeLabel = new Label(message.getTimestamp().format(DateTimeFormatter.ofPattern("HH:mm")));
-    timeLabel.getStyleClass().add("message-time");
+//    Label timeLabel = new Label(message.getTimestamp().format(DateTimeFormatter.ofPattern("HH:mm")));
+//    timeLabel.getStyleClass().add("message-time");
 
-    messageBubble.getChildren().addAll(messageText, timeLabel);
+//    messageBubble.getChildren().addAll(messageText, timeLabel);
 
-    boolean isCurrentUser = message.getSender().equals(currentUserName);
+    boolean isCurrentUser = currentUserName.equals(message.getSender());
     if (isCurrentUser) {
       messageBubble.getStyleClass().add("message-sent");
       messageBox.setAlignment(Pos.CENTER_RIGHT);
@@ -197,8 +195,6 @@ public class MainChatController {
 
     messagesContainer.getChildren().add(messageBox);
   }
-
-
 
   @FXML
   private void onLogoutClick() {}

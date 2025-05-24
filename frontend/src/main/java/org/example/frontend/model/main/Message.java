@@ -12,9 +12,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Message {
-  private String id;
+  private long id;
+  private String roomId;
   private String sender;
   private String content;
-  private LocalDateTime timestamp;
-  private String chatId;
+  private String filePath;
+  private long timestamp;
 }

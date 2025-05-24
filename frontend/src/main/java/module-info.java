@@ -12,6 +12,7 @@ module org.example.frontend {
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
   requires java.net.http;
+  requires java.sql;
 
   exports org.example.frontend.app;
     opens org.example.frontend.app to javafx.fxml;
