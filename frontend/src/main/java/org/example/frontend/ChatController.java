@@ -3,11 +3,12 @@ package org.example.frontend;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.stub.StreamObserver;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
@@ -20,26 +21,33 @@ public class ChatController {
     private ManagedChannel channel;
     private ChatServiceGrpc.ChatServiceStub asyncStub;
     private ChatServiceGrpc.ChatServiceBlockingStub blockingStub;
-    private final String username = "Client_" + (int)(Math.random() * 1000);
+
+    private String username = null;
+
+    private String secondName = null;
+
+    public ChatController(String username, String secondName) {
+        this.username = username;
+        this.secondName = secondName;
+    }
 
     public void initialize() {
-        // 1) Строим канал и стабы
         channel = ManagedChannelBuilder.forAddress("localhost", 50051)
                 .usePlaintext()
                 .build();
         asyncStub    = ChatServiceGrpc.newStub(channel);
         blockingStub = ChatServiceGrpc.newBlockingStub(channel);
 
-        // 2) Подписываемся на получение входящих сообщений
-        asyncStub.receiveMessages(
-                ChatProto.Empty.newBuilder().build(),
+        ChatProto.ConnectRequest connectRequest = ChatProto.ConnectRequest.newBuilder().setUserName(username).build();
+        asyncStub.connect(
+                connectRequest,
                 new io.grpc.stub.StreamObserver<ChatProto.ChatMessage>() {
                     @Override
                     public void onNext(ChatProto.ChatMessage msg) {
                         Platform.runLater(() ->
                                 messageList.getItems().add(
-                                        "[" + msg.getTimestamp() + "] " +
-                                                msg.getSender() + ": " + msg.getContent()
+                                        "[" + msg.getDateTime() + "] " +
+                                                "from: " + msg.getFromUserName() + ": " + msg.getText()
                                 )
                         );
                     }
@@ -51,7 +59,7 @@ public class ChatController {
 
                     @Override
                     public void onCompleted() {
-                        // Сервер закрыл поток
+                        System.out.println("disconnected");
                     }
                 }
         );
@@ -63,19 +71,24 @@ public class ChatController {
         if (text.isEmpty()) return;
         inputField.clear();
 
-        // 3) Строим сообщение и заполняем timestamp
-        ChatProto.ChatMessage msg = ChatProto.ChatMessage.newBuilder()
-                .setSender(username)
-                .setContent(text)
-                .setTimestamp(Instant.now().toString())
+        ChatProto.SendMessageRequest request = ChatProto.SendMessageRequest.newBuilder()
+                .setFromUserName(username)
+                .setToUserName(secondName)
+                .setDateTime(Instant.now().toString())
+                .setText(text)
                 .build();
 
-        // 4) Отправляем через blockingStub — проще и без StreamObserver
-        try {
-            blockingStub.sendMessage(msg);
-        } catch (Exception e) {
-            e.printStackTrace();
+
+        ChatProto.SendMessageResponse response = blockingStub.sendMessage(request);
+        if(response.getDelivered()) {
+            Platform.runLater(() ->
+                    messageList.getItems().add(
+                            "[" + request.getDateTime() + "] " +
+                                    "from: " + request.getFromUserName() + ": " + request.getText()
+                    )
+            );
         }
+
     }
 
     /** Вызывайте этот метод при закрытии приложения, чтобы чисто закрыть канал */

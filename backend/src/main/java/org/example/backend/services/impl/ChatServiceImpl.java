@@ -1,5 +1,6 @@
 package org.example.backend.services.impl;
 
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -7,39 +8,61 @@ import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @GrpcService
 public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
-    // потокобезопасный список подписавшихся клиентов
-    private final List<StreamObserver<ChatProto.ChatMessage>> subscribers = new CopyOnWriteArrayList<>();
+
+    private final Map<String, StreamObserver<ChatProto.ChatMessage>> clients = new ConcurrentHashMap<>();
 
     @Override
-    public void receiveMessages(ChatProto.Empty request,
-                                StreamObserver<ChatProto.ChatMessage> responseObserver) {
-        // добавляем в список, когда клиент вызывает ReceiveMessages
-        subscribers.add(responseObserver);
-        // при закрытии стрима — удаляем
+    public void connect(ChatProto.ConnectRequest request, StreamObserver<ChatProto.ChatMessage> responseObserver) {
+        String userId = request.getUserName();
+        clients.put(userId, responseObserver);
+
+
         if (responseObserver instanceof ServerCallStreamObserver) {
             ServerCallStreamObserver<ChatProto.ChatMessage> serverObserver =
                     (ServerCallStreamObserver<ChatProto.ChatMessage>) responseObserver;
 
             serverObserver.setOnCancelHandler(() -> {
-                // Клиент закрыл соединение — убираем из списка
-                subscribers.remove(responseObserver);
+                clients.remove(userId);
+                System.out.println("User " + userId + " disconnected");
             });
         }
     }
 
     @Override
-    public void sendMessage(ChatProto.ChatMessage request,
-                            StreamObserver<ChatProto.Empty> responseObserver) {
-        // рассылка пришедшего сообщения всем подписчикам
-        for (var sub : subscribers) {
-            sub.onNext(request);
+    public void sendMessage(ChatProto.SendMessageRequest request, StreamObserver<ChatProto.SendMessageResponse> responseObserver) {
+        String recipientId = request.getToUserName();
+        StreamObserver<ChatProto.ChatMessage> recipientStream = clients.get(recipientId);
+        boolean delivered = false;
+
+        if (recipientStream != null) {
+            try {
+                ChatProto.ChatMessage message = ChatProto.ChatMessage.newBuilder()
+                        .setFromUserName(request.getFromUserName())
+                        .setText(request.getText())
+                        .setDateTime(request.getDateTime())
+                        .build();
+
+
+                recipientStream.onNext(message);
+                delivered = true;
+            } catch (StatusRuntimeException e) {
+
+                clients.remove(recipientId);
+            }
         }
-        // подтверждаем отправителю
-        responseObserver.onNext(ChatProto.Empty.newBuilder().build());
+
+        // Возвращаем результат отправителю
+        ChatProto.SendMessageResponse response = ChatProto.SendMessageResponse.newBuilder()
+                .setDelivered(delivered)
+                .build();
+
+        responseObserver.onNext(response);
         responseObserver.onCompleted();
     }
 }

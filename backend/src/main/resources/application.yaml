@@ -32,7 +32,7 @@ logging:
   level:
     io.grpc: DEBUG
     org.springframework.security: INFO
-    root: info
+
 
 grpc:
   server:
