@@ -10,8 +10,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class ChatRoom {
-  private String roomId;
+  private String roomId; // генерируем рандомно уникальный
+  private String owner;
   private String otherUser;
-  private String lastMessage;
-  private long lastMessageTime;
+  private String lastMessage; // это последнее сообщение как в тг для отрисовки
+  private long lastMessageTime; // это последнее время сообщение как в тг для отрисовки
+
+  private String cipherMode;
+  private String paddingMode;
+  private String iv;
 }

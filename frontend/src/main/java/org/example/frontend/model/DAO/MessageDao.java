@@ -10,4 +10,7 @@ public interface MessageDao {
   List<Message> findByRoomId(String roomId);
 
   void deleteAll();
+
+  // Добавим метод для удаления сообщений конкретной комнаты
+  void deleteByRoomId(String roomId);
 }

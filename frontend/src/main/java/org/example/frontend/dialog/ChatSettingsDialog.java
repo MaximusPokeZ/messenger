@@ -1,0 +1,88 @@
+package org.example.frontend.dialog;
+
+import javafx.geometry.Insets;
+import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
+import org.example.frontend.model.main.ChatSetting;
+
+import java.security.SecureRandom;
+import java.util.Base64;
+
+public class ChatSettingsDialog extends Dialog<ChatSetting> {
+  private ComboBox<String> cipherBox;
+  private ComboBox<String> cipherModeCombo;
+  private ComboBox<String> paddingModeCombo;
+  private TextField ivField;
+  private Button generateIvButton;
+
+  public ChatSettingsDialog() {
+    setTitle("Encryption settings");
+    setHeaderText("Select encryption options");
+
+    ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+    getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+
+    cipherBox = new ComboBox<>();
+    cipherBox.getItems().addAll("RC6", "SERPENT");
+    cipherBox.getSelectionModel().selectFirst();
+
+    cipherModeCombo = new ComboBox<>();
+    cipherModeCombo.getItems().addAll("ECB", "CBC", "PCBC", "CFB", "OFB", "CTR", "RANDOM_DELTA");
+    cipherModeCombo.getSelectionModel().selectFirst();
+
+    paddingModeCombo = new ComboBox<>();
+    paddingModeCombo.getItems().addAll("ANSI_X923", "ZEROS", "PKCS7", "ISO_10126");
+    paddingModeCombo.getSelectionModel().selectFirst();
+
+    ivField = new TextField();
+    ivField.setPromptText("Base64 IV");
+
+    generateIvButton = new Button("Generate IV");
+    generateIvButton.setOnAction(e -> generateIv());
+
+    GridPane grid = new GridPane();
+    grid.setHgap(10);
+    grid.setVgap(10);
+    grid.setPadding(new Insets(20, 150, 10, 10));
+
+    grid.add(new Label("Cipher:"), 0, 0);
+    grid.add(cipherBox, 1, 0);
+
+    grid.add(new Label("Cipher mode:"), 0, 1);
+    grid.add(cipherModeCombo, 1, 1);
+
+    grid.add(new Label("Padding mode:"), 0, 2);
+    grid.add(paddingModeCombo, 1, 2);
+
+    grid.add(new Label("IV (Base64):"), 0, 3);
+    grid.add(ivField, 1, 3);
+    grid.add(generateIvButton, 2, 3);
+
+
+    getDialogPane().setContent(grid);
+
+    setResultConverter(dialogButton -> {
+      if (dialogButton == createButtonType) {
+        return new ChatSetting(
+                cipherBox.getValue(),
+                cipherModeCombo.getValue(),
+                paddingModeCombo.getValue(),
+                ivField.getText().isEmpty() ? generateRandomIvBase64() : ivField.getText()
+        );
+      }
+      return null;
+    });
+
+    generateIv();
+  }
+
+  private void generateIv() {
+    ivField.setText(generateRandomIvBase64());
+  }
+
+  private String generateRandomIvBase64() {
+    byte[] iv = new byte[16];
+    new SecureRandom().nextBytes(iv);
+    return Base64.getEncoder().encodeToString(iv);
+  }
+}

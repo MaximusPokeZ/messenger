@@ -11,11 +11,15 @@ module org.example.frontend {
     requires org.slf4j;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
-  requires java.net.http;
-  requires java.sql;
+    requires java.net.http;
+    requires java.sql;
+    requires org.json;
+
 
   exports org.example.frontend.app;
     opens org.example.frontend.app to javafx.fxml;
     exports org.example.frontend.controller;
     opens org.example.frontend.controller to javafx.fxml;
+  exports org.example.frontend.model.main;
+  exports org.example.frontend.httpToSpring;
 }

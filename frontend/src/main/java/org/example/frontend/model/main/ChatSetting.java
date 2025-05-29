@@ -7,8 +7,11 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class User {
-  private String username;
+@NoArgsConstructor
+public class ChatSetting {
+  private String cipher;
+  private String cipherMode;
+  private String paddingMode;
+  private String iv;
 }

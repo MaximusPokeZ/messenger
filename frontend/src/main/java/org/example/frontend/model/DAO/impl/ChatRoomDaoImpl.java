@@ -2,6 +2,7 @@ package org.example.frontend.model.DAO.impl;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.example.frontend.manager.DBManager;
 import org.example.frontend.model.DAO.ChatRoomDao;
 import org.example.frontend.model.main.ChatRoom;
 
@@ -14,8 +15,8 @@ import java.util.Optional;
 public class ChatRoomDaoImpl implements ChatRoomDao {
   private final Connection connection;
 
-  public ChatRoomDaoImpl(Connection connection) {
-    this.connection = connection;
+  public ChatRoomDaoImpl() {
+    this.connection = DBManager.getInstance().getConnection();
     createTable();
   }
 
@@ -23,10 +24,14 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
   public void createTable() {
     String sql = """
             CREATE TABLE IF NOT EXISTS chat_rooms (
-                room_id TEXT PRIMARY KEY,
-                other_user TEXT NOT NULL,
-                last_message TEXT,
-                last_message_time INTEGER
+                  room_id TEXT PRIMARY KEY,
+                  owner TEXT NOT NULL,
+                  other_user TEXT NOT NULL,
+                  last_message TEXT,
+                  last_message_time INTEGER,
+                  cipher_mode TEXT,
+                  padding_mode TEXT,
+                  iv TEXT
             );
             """;
     try (Statement stmt = connection.createStatement()) {
@@ -38,13 +43,20 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
 
   @Override
   public void insert(ChatRoom room) {
-    String sql = "INSERT INTO chat_rooms (room_id, other_user, last_message, last_message_time) VALUES (?, ?, ?, ?)";
-
+    String sql = """
+                INSERT INTO chat_rooms 
+                (room_id, owner, other_user, last_message, last_message_time, cipher_mode, padding_mode, iv) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """;
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
       stmt.setString(1, room.getRoomId());
-      stmt.setString(2, room.getOtherUser());
-      stmt.setString(3, room.getLastMessage());
-      stmt.setLong(4, room.getLastMessageTime());
+      stmt.setString(2, room.getOwner());
+      stmt.setString(3, room.getOtherUser());
+      stmt.setString(4, room.getLastMessage());
+      stmt.setLong(5, room.getLastMessageTime());
+      stmt.setString(6, room.getCipherMode());
+      stmt.setString(7, room.getPaddingMode());
+      stmt.setString(8, room.getIv());
       stmt.executeUpdate();
     } catch (SQLException e) {
       throw new RuntimeException("Failed to insert chat room", e);
@@ -74,12 +86,16 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
          ResultSet rs = stmt.executeQuery(sql)) {
 
       while (rs.next()) {
-        rooms.add(new ChatRoom(
-                rs.getString("room_id"),
-                rs.getString("other_user"),
-                rs.getString("last_message"),
-                rs.getLong("last_message_time")
-        ));
+        rooms.add(ChatRoom.builder()
+                .roomId(rs.getString("room_id"))
+                .owner(rs.getString("owner"))
+                .otherUser(rs.getString("other_user"))
+                .lastMessage(rs.getString("last_message"))
+                .lastMessageTime(rs.getLong("last_message_time"))
+                .cipherMode(rs.getString("cipher_mode"))
+                .paddingMode(rs.getString("padding_mode"))
+                .iv(rs.getString("iv"))
+                .build());
       }
     } catch (SQLException e) {
       throw new RuntimeException("Failed to retrieve chat rooms", e);
@@ -94,12 +110,16 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(1, roomId);
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new ChatRoom(
-                  rs.getString("room_id"),
-                  rs.getString("other_user"),
-                  rs.getString("last_message"),
-                  rs.getLong("last_message_time")
-          ));
+          return Optional.of(ChatRoom.builder()
+                  .roomId(rs.getString("room_id"))
+                  .owner(rs.getString("owner"))
+                  .otherUser(rs.getString("other_user"))
+                  .lastMessage(rs.getString("last_message"))
+                  .lastMessageTime(rs.getLong("last_message_time"))
+                  .cipherMode(rs.getString("cipher_mode"))
+                  .paddingMode(rs.getString("padding_mode"))
+                  .iv(rs.getString("iv"))
+                  .build());
         }
       }
     } catch (SQLException e) {
