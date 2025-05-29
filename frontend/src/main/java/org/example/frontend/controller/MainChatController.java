@@ -1,5 +1,8 @@
 package org.example.frontend.controller;
 
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -12,8 +15,11 @@ import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
 import org.example.frontend.model.main.User;
+import org.example.shared.ChatProto;
+import org.example.shared.ChatServiceGrpc;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +27,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class MainChatController {
+
+  private ManagedChannel channel;
+  private ChatServiceGrpc.ChatServiceStub asyncStub;
+  private ChatServiceGrpc.ChatServiceBlockingStub blockingStub;
+
+
   @FXML
   private Label userLabel;
   @FXML
@@ -54,9 +66,45 @@ public class MainChatController {
 
   private List<ChatRoom> chatRooms;
 
-  public String currentUserName = "Max"; // TODO: брать из JWT;
+  public String currentUserName = JwtStorage.getUsername(); // TODO: брать из JWT;
 
   public void initialize() {
+
+    channel = ManagedChannelBuilder.forAddress("localhost", 50051)
+            .usePlaintext()
+            .build();
+    asyncStub    = ChatServiceGrpc.newStub(channel);
+    blockingStub = ChatServiceGrpc.newBlockingStub(channel);
+
+    ChatProto.ConnectRequest connectRequest = ChatProto.ConnectRequest.newBuilder().setUserName(currentUserName).build();
+    asyncStub.connect(
+            connectRequest,
+            new io.grpc.stub.StreamObserver<ChatProto.ChatMessage>() {
+              @Override
+              public void onNext(ChatProto.ChatMessage msg) {
+                Platform.runLater(() ->
+                        log.info(
+                                "[" + msg.getDateTime() + "] " +
+                                        "from: " + msg.getFromUserName() + ": " + msg.getText()
+                        )
+                );
+              }
+
+              @Override
+              public void onError(Throwable t) {
+                t.printStackTrace();
+              }
+
+              @Override
+              public void onCompleted() {
+                System.out.println("disconnected");
+              }
+            }
+    );
+
+    messageInputField.setDisable(false);
+    sendButton.setDisable(false);
+
     searchResultsPanel.setVisible(false);
   }
 
@@ -115,7 +163,29 @@ public class MainChatController {
   }
 
   @FXML
-  private void onSendMessage() {}
+  private void onSendMessage() {
+    String text = messageInputField.getText().trim();
+    if (text.isEmpty()) return;
+    messageInputField.clear();
+
+    ChatProto.SendMessageRequest request = ChatProto.SendMessageRequest.newBuilder()
+            .setFromUserName(currentUserName)
+            .setToUserName(currentUserName.equals("max") ? "sasha" : "max")
+            .setDateTime(Instant.now().toString())
+            .setText(text)
+            .build();
+
+
+    ChatProto.SendMessageResponse response = blockingStub.sendMessage(request);
+    if(response.getDelivered()) {
+      Platform.runLater(() ->
+              log.info(
+                      "[" + request.getDateTime() + "] " +
+                              "from: " + request.getFromUserName() + ": " + request.getText()
+              )
+      );
+    }
+  }
 
   @FXML
   private void onCloseSearchClick() {

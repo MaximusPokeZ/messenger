@@ -10,7 +10,7 @@ public class StartApplication extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         SceneManager.setCurrentStage(stage);
-        SceneManager.switchToMainScene();
+        SceneManager.switchToLoginScene();
         stage.show();
     }
 
