@@ -1,8 +1,10 @@
 package org.example.frontend.httpToSpring;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.main.User;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.net.URI;
@@ -12,8 +14,9 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class ChatApiClient {
-  private static final String BASE_URL = "http://localhost:8080/api";
+  private static final String BASE_URL = "http://localhost:8080/client";
   private static final HttpClient httpClient = HttpClient.newHttpClient();
 
   private static HttpRequest.Builder baseRequest(String endpoint) {
@@ -23,14 +26,25 @@ public class ChatApiClient {
   }
 
   public static List<User> getOnlineUsers() {
-    HttpRequest httpRequest = baseRequest(BASE_URL + "/online").GET().build();
+    log.info("Getting online users");
+    HttpRequest httpRequest = baseRequest( "/allOnline").GET().build();
 
     try {
       HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+      log.info("status code: {}", response.statusCode());
       JSONArray jsonArray = new JSONArray(response.body());
       List<User> users = new ArrayList<>();
       for (int i = 0; i < jsonArray.length(); i++) {
-        users.add(new User(jsonArray.getString(i)));
+        //users.add(new User(jsonArray.getString(i)));
+        //log.info(jsonArray.getString(i));
+        JSONObject userObj = jsonArray.getJSONObject(i);
+        // Извлекаем имя пользователя
+        String username = userObj.getString("username");
+        // Создаём и добавляем пользователя
+        users.add(new User(username));
+
+        log.info("finded user: {}", username);
       }
       return users;
     } catch (IOException | InterruptedException e) {

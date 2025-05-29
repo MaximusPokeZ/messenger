@@ -123,7 +123,7 @@ public class MainChatController {
   public void onSearchClick() {
     log.info("Search clicked");
     String searchText = searchField.getText().trim().toLowerCase();
-    List<String> allUsers = ChatApiClient.getOnlineUsersTest().stream() // TODO: убрать тест
+    List<String> allUsers = ChatApiClient.getOnlineUsers().stream() // TODO: убрать тест
             .map(User::getUsername)
             .filter(u -> !u.equals(currentUserName))
             .collect(Collectors.toList());
