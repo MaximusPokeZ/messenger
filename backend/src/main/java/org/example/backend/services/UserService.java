@@ -13,9 +13,9 @@ public interface UserService {
 
     Optional<UserDb> findUserByUsername(String username);
 
-    void markUserAsOnline(String username);
+//    void markUserAsOnline(String username);
 
-    void markUserAsOffline(String username);
-
-    List<UsernameResponse> getAllOnlineUsers();
+//    void markUserAsOffline(String username);
+//
+//    List<UsernameResponse> getAllOnlineUsers();
 }

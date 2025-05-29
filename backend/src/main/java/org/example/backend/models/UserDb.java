@@ -22,6 +22,4 @@ public class UserDb {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
-    private boolean online = false;
 }

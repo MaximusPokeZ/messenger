@@ -8,6 +8,7 @@ import org.example.backend.dto.responses.TokenResponse;
 import org.example.backend.dto.responses.UsernameResponse;
 import org.example.backend.services.RegisterLoginService;
 import org.example.backend.services.UserService;
+import org.example.backend.services.impl.ChatServiceImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,7 @@ public class AuthController {
 
     private final RegisterLoginService registerLoginService;
 
-    private final UserService userService;
+    private final ChatServiceImpl chatService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.OK)
@@ -32,18 +33,7 @@ public class AuthController {
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
     public TokenResponse login(@RequestBody UserRequest userRequest) {
-        TokenResponse response = registerLoginService.login(userRequest.getUsername(), userRequest.getPassword());
-        if (response.getToken() != null) {
-            userService.markUserAsOnline(userRequest.getUsername());
-        }
-        return response;
+        return registerLoginService.login(userRequest.getUsername(), userRequest.getPassword());
     }
-
-    @GetMapping("/allOnline")
-    @ResponseStatus(HttpStatus.OK)
-    public List<UsernameResponse> allOnline() {
-        return userService.getAllOnlineUsers();
-    }
-
 
 }

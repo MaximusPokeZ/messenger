@@ -10,5 +10,4 @@ import java.util.Optional;
 public interface UserDbRepository extends JpaRepository<UserDb, String> {
     Optional<UserDb> findByUsername(String username);
     boolean existsByUsername(String username);
-    List<UserDb> getUserDbByOnlineTrue();
 }

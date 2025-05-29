@@ -36,31 +36,4 @@ public class UserDbService implements UserService {
         return userDbRepository.findByUsername(username);
     }
 
-    @Override
-    @Transactional
-    public void markUserAsOnline(String username) {
-        UserDb user = loadUserByUsername(username);
-        if (!user.isOnline()) {
-            user.setOnline(true);
-            userDbRepository.save(user);
-        }
-    }
-
-    @Override
-    @Transactional
-    public void markUserAsOffline(String username) {
-        UserDb user = loadUserByUsername(username);
-        if (user.isOnline()) {
-            user.setOnline(false);
-            userDbRepository.save(user);
-        }
-    }
-
-    @Override
-    public List<UsernameResponse> getAllOnlineUsers() {
-        return userDbRepository.getUserDbByOnlineTrue()
-                .stream()
-                .map(user -> new UsernameResponse(user.getUsername()))
-                .collect(Collectors.toList());
-    }
 }

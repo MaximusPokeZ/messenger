@@ -4,13 +4,16 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
+import org.example.backend.dto.responses.UsernameResponse;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+
 
 @GrpcService
 public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
@@ -64,5 +67,9 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
 
         responseObserver.onNext(response);
         responseObserver.onCompleted();
+    }
+
+    public List<UsernameResponse> getOnlineUsernames() {
+        return clients.keySet().stream().map(UsernameResponse::new).toList();
     }
 }
