@@ -16,6 +16,7 @@ public class ChatRoom {
   private String lastMessage; // это последнее сообщение как в тг для отрисовки
   private long lastMessageTime; // это последнее время сообщение как в тг для отрисовки
 
+  private String cipher;
   private String cipherMode;
   private String paddingMode;
   private String iv;

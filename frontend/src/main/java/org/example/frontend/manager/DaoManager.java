@@ -14,4 +14,6 @@ public class DaoManager {
     chatRoomDao = new ChatRoomDaoImpl();
     messageDao = new MessageDaoImpl();
   }
+
+  private DaoManager() {}
 }

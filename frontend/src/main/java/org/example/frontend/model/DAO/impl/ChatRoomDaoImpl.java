@@ -29,6 +29,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                   other_user TEXT NOT NULL,
                   last_message TEXT,
                   last_message_time INTEGER,
+                  cipher TEXT,
                   cipher_mode TEXT,
                   padding_mode TEXT,
                   iv TEXT
@@ -45,8 +46,8 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
   public void insert(ChatRoom room) {
     String sql = """
                 INSERT INTO chat_rooms 
-                (room_id, owner, other_user, last_message, last_message_time, cipher_mode, padding_mode, iv) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (room_id, owner, other_user, last_message, last_message_time, cipher, cipher_mode, padding_mode, iv) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
       stmt.setString(1, room.getRoomId());
@@ -54,10 +55,13 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(3, room.getOtherUser());
       stmt.setString(4, room.getLastMessage());
       stmt.setLong(5, room.getLastMessageTime());
-      stmt.setString(6, room.getCipherMode());
-      stmt.setString(7, room.getPaddingMode());
-      stmt.setString(8, room.getIv());
+      stmt.setString(6, room.getCipher());
+      stmt.setString(7, room.getCipherMode());
+      stmt.setString(8, room.getPaddingMode());
+      stmt.setString(9, room.getIv());
       stmt.executeUpdate();
+
+      log.info("Inserted chat_room {}", room.getRoomId());
     } catch (SQLException e) {
       throw new RuntimeException("Failed to insert chat room", e);
     }
@@ -92,6 +96,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                 .otherUser(rs.getString("other_user"))
                 .lastMessage(rs.getString("last_message"))
                 .lastMessageTime(rs.getLong("last_message_time"))
+                .cipher(rs.getString("cipher"))
                 .cipherMode(rs.getString("cipher_mode"))
                 .paddingMode(rs.getString("padding_mode"))
                 .iv(rs.getString("iv"))
@@ -116,6 +121,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                   .otherUser(rs.getString("other_user"))
                   .lastMessage(rs.getString("last_message"))
                   .lastMessageTime(rs.getLong("last_message_time"))
+                  .cipher(rs.getString("cipher"))
                   .cipherMode(rs.getString("cipher_mode"))
                   .paddingMode(rs.getString("padding_mode"))
                   .iv(rs.getString("iv"))

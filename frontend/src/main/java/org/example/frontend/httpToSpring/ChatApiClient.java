@@ -36,29 +36,16 @@ public class ChatApiClient {
       JSONArray jsonArray = new JSONArray(response.body());
       List<User> users = new ArrayList<>();
       for (int i = 0; i < jsonArray.length(); i++) {
-        //users.add(new User(jsonArray.getString(i)));
-        //log.info(jsonArray.getString(i));
         JSONObject userObj = jsonArray.getJSONObject(i);
-        // Извлекаем имя пользователя
         String username = userObj.getString("username");
-        // Создаём и добавляем пользователя
         users.add(new User(username));
 
-        log.info("finded user: {}", username);
+        log.info("found user: {}", username);
       }
       return users;
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public static List<User> getOnlineUsersTest() {
-    return List.of(
-            new User("Alice"),
-            new User("Bob"),
-            new User("Max"),
-            new User("Carol")
-    );
   }
 
   private ChatApiClient() {}

@@ -61,6 +61,7 @@ public class DBManager {
                   other_user TEXT NOT NULL,
                   last_message TEXT,
                   last_message_time INTEGER,
+                  cipher TEXT,
                   cipher_mode TEXT,
                   padding_mode TEXT,
                   iv TEXT

@@ -2,8 +2,6 @@ package org.example.frontend.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -13,8 +11,6 @@ import org.example.frontend.manager.SceneManager;
 import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.LoginRequest;
 import org.example.frontend.model.LoginResponse;
-import org.example.shared.ChatProto;
-import org.example.shared.ChatServiceGrpc;
 
 import java.io.IOException;
 import java.net.URI;
@@ -24,9 +20,6 @@ import java.net.http.HttpResponse;
 
 @Slf4j
 public class LoginController {
-
-
-
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -90,7 +83,6 @@ public class LoginController {
                     JwtStorage.setUsername(username);
 
                     SceneManager.switchToMainScene();
-
 
                   } catch (JsonProcessingException e) {
                     showError("Error processing token: " + response.statusCode());

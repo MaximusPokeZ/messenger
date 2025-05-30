@@ -10,28 +10,30 @@ import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.httpToSpring.ChatApiClient;
+import org.example.frontend.manager.DBManager;
+import org.example.frontend.manager.DaoManager;
+import org.example.frontend.manager.GrpcClient;
 import org.example.frontend.manager.SceneManager;
 import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
 import org.example.frontend.model.main.User;
+import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class MainChatController {
 
-  private ManagedChannel channel;
-  private ChatServiceGrpc.ChatServiceStub asyncStub;
-  private ChatServiceGrpc.ChatServiceBlockingStub blockingStub;
-
+  private final GrpcClient grpcClient = GrpcClient.getInstance();
 
   @FXML
   private Label userLabel;
@@ -64,46 +66,25 @@ public class MainChatController {
 
   private ChatRoom currentChat;
 
-  private List<ChatRoom> chatRooms;
+  private List<ChatRoom> chatRooms = new ArrayList<>();
 
-  public String currentUserName = JwtStorage.getUsername(); // TODO: брать из JWT;
+  private final String currentUserName = JwtStorage.getUsername();
 
   public void initialize() {
+    DBManager.initInstance(currentUserName);
+    DaoManager.init();
 
-    channel = ManagedChannelBuilder.forAddress("localhost", 50051)
-            .usePlaintext()
-            .build();
-    asyncStub    = ChatServiceGrpc.newStub(channel);
-    blockingStub = ChatServiceGrpc.newBlockingStub(channel);
-
-    ChatProto.ConnectRequest connectRequest = ChatProto.ConnectRequest.newBuilder().setUserName(currentUserName).build();
-    asyncStub.connect(
-            connectRequest,
-            new io.grpc.stub.StreamObserver<ChatProto.ChatMessage>() {
-              @Override
-              public void onNext(ChatProto.ChatMessage msg) {
-                Platform.runLater(() ->
-                        log.info(
-                                "[" + msg.getDateTime() + "] " +
-                                        "from: " + msg.getFromUserName() + ": " + msg.getText()
-                        )
-                );
-              }
-
-              @Override
-              public void onError(Throwable t) {
-                t.printStackTrace();
-              }
-
-              @Override
-              public void onCompleted() {
-                System.out.println("disconnected");
-              }
-            }
+    grpcClient.connect(
+            currentUserName,
+            msg -> Platform.runLater(() -> log.info(
+                    "[{}] from: {}: {}",
+                    msg.getDateTime(),
+                    msg.getFromUserName(),
+                    msg.getText()
+            )),
+            () -> log.info("Disconnected from server"),
+            Throwable::printStackTrace
     );
-
-    messageInputField.setDisable(false);
-    sendButton.setDisable(false);
 
     searchResultsPanel.setVisible(false);
   }
@@ -123,7 +104,7 @@ public class MainChatController {
   public void onSearchClick() {
     log.info("Search clicked");
     String searchText = searchField.getText().trim().toLowerCase();
-    List<String> allUsers = ChatApiClient.getOnlineUsers().stream() // TODO: убрать тест
+    List<String> allUsers = ChatApiClient.getOnlineUsers().stream()
             .map(User::getUsername)
             .filter(u -> !u.equals(currentUserName))
             .collect(Collectors.toList());
@@ -148,18 +129,48 @@ public class MainChatController {
     });
   }
 
-
   private void createNewChatRoom(String username) {
     log.info("Creating new chat with: {}", username);
     ChatSettingsDialog dialog = new ChatSettingsDialog();
     Optional<ChatSetting> result = dialog.showAndWait();
 
+    String guid = UUID.randomUUID().toString();
     result.ifPresent(settings -> {
       log.info("Cipher: {}", settings.getCipher());
       log.info("Cipher mode: {}", settings.getCipherMode());
       log.info("Padding mode: {}", settings.getPaddingMode());
       log.info("IV: {}", settings.getIv());
+
+      String token = RoomTokenEncoder.encode(
+              guid,
+              settings.getCipher(),
+              settings.getCipherMode(),
+              settings.getPaddingMode(),
+              settings.getIv()
+      );
+
+      ChatRoom chatRoom = ChatRoom.builder()
+              .roomId(guid)
+              .owner(currentUserName)
+              .otherUser(username)
+              .cipher(settings.getCipher())
+              .cipherMode(settings.getCipherMode())
+              .paddingMode(settings.getPaddingMode())
+              .iv(settings.getIv())
+              .build();
+
+      chatRooms.add(chatRoom);
+      DaoManager.getChatRoomDao().insert(chatRoom);
+      sendInitRoomRequest(username, token, guid);
     });
+  }
+
+  private void sendInitRoomRequest(String toUser, String token, String roomId) {
+
+
+    //TODO : послать запрос на создание комнаты у другого юзера + там же диффи хелман
+
+
   }
 
   @FXML
@@ -168,22 +179,16 @@ public class MainChatController {
     if (text.isEmpty()) return;
     messageInputField.clear();
 
-    ChatProto.SendMessageRequest request = ChatProto.SendMessageRequest.newBuilder()
-            .setFromUserName(currentUserName)
-            .setToUserName(currentUserName.equals("max") ? "sasha" : "max")
-            .setDateTime(Instant.now().toString())
-            .setText(text)
-            .build();
+    String recipient = currentUserName.equals("max") ? "sasha" : "max";
 
-
-    ChatProto.SendMessageResponse response = blockingStub.sendMessage(request);
-    if(response.getDelivered()) {
-      Platform.runLater(() ->
-              log.info(
-                      "[" + request.getDateTime() + "] " +
-                              "from: " + request.getFromUserName() + ": " + request.getText()
-              )
-      );
+    boolean delivered = grpcClient.sendMessage(currentUserName, recipient, text);
+    if (delivered) {
+      Platform.runLater(() -> log.info(
+              "[{}] from: {}: {}",
+              Instant.now(),
+              currentUserName,
+              text
+      ));
     }
   }
 
@@ -193,6 +198,5 @@ public class MainChatController {
     searchResultsListView.getItems().clear();
     searchField.clear();
   }
-
 
 }
