@@ -116,28 +116,18 @@ public class MainChatController {
 
     grpcClient.connect(
             currentUserName,
-            msg -> Platform.runLater(() -> log.info(
-                    "[{}] from: {}: {}",
-                    msg.getDateTime(),
-                    msg.getFromUserName(),
-                    msg.getText()
-            )),
+            msg -> Platform.runLater(() -> {
+                      switch(msg.getType()) {
+                        case ChatProto.MessageType.TEXT -> handleTextMessage(msg);
+                        case ChatProto.MessageType.INIT_ROOM -> handleInitRoomMessage(msg);
+                        default -> throw new UnsupportedOperationException("Unsupported chat type: " + msg.getType());
+                      }
+            }
+                    ),
             () -> log.info("Disconnected from server"),
             Throwable::printStackTrace
     );
-//    grpcClient.connect(
-//            currentUserName,
-//            msg -> Platform.runLater(() -> {
-//              switch (msg.getType()) {
-//                case TEXT -> handleTextMessage(msg);
-//                case INIT_ROOM -> handleInitRoomMessage(msg);
-//                // Добавляй другие типы сообщений по мере необходимости
-//                default -> handleUnknownMessage(msg);
-//              }
-//            }),
-//            () -> log.info("Disconnected from server"),
-//            Throwable::printStackTrace
-//    );
+
 
     searchResultsPanel.setVisible(false);
   }
@@ -146,9 +136,12 @@ public class MainChatController {
   }
 
   private void handleInitRoomMessage(ChatProto.ChatMessage msg) {
+    // TODO проверка на наличие комнаты такой
+    //grpcClient.sendInitRoomRequest(msg.) //TODO тут не менять отправителя и получателя местами!
   }
 
   private void handleTextMessage(ChatProto.ChatMessage msg) {
+    // TODO нужно извлечь из токена roomId и записать в нужное место
   }
 
   @FXML
@@ -156,6 +149,7 @@ public class MainChatController {
     JwtStorage.setUsername(null);
     JwtStorage.setToken(null);
     try {
+      grpcClient.shutdown();
       SceneManager.switchToLoginScene();
     } catch (IOException e) {
       throw new RuntimeException("Failed to log out: " + e);
@@ -281,7 +275,7 @@ public class MainChatController {
     String publicComponent = ""; //  = DiffieHellman.generatePublicComponent(g, p);
 
     boolean accepted = grpcClient.sendInitRoomRequest(
-            currentUserName, toUser, roomId, token, g, p, publicComponent
+            currentUserName, toUser, token, publicComponent
     );
 
     if (accepted) {

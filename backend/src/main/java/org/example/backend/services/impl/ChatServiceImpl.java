@@ -38,6 +38,39 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
     }
 
     @Override
+    public void initRoom(ChatProto.InitRoomRequest request, StreamObserver<ChatProto.InitRoomResponse> responseObserver) {
+        String toUser = request.getToUserName();
+        StreamObserver<ChatProto.ChatMessage> recipientStream = clients.get(toUser);
+        boolean isDelivered = false;
+
+        if (recipientStream != null) {
+            try {
+                ChatProto.ChatMessage message = ChatProto.ChatMessage.newBuilder()
+                        .setFromUserName(request.getFromUserName())
+                        .setType(request.getType())
+                        .setToken(request.getToken())
+                        .setPublicExponent(request.getPublicComponent())
+                        .build();
+
+
+                recipientStream.onNext(message);
+
+            } catch (StatusRuntimeException e) {
+                clients.remove(toUser);
+            }
+
+        }
+        isDelivered = true;
+        ChatProto.InitRoomResponse response = ChatProto.InitRoomResponse.newBuilder()
+                .setIsDelivered(isDelivered)
+                .build();
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+
+
+    @Override
     public void sendMessage(ChatProto.SendMessageRequest request, StreamObserver<ChatProto.SendMessageResponse> responseObserver) {
         String recipientId = request.getToUserName();
         StreamObserver<ChatProto.ChatMessage> recipientStream = clients.get(recipientId);

@@ -85,23 +85,16 @@ public class GrpcClient {
     return response.getDelivered();
   }
 
-  public boolean sendInitRoomRequest(String fromUser, String toUser, String roomId, String token, String g, String p, String publicComponent) {
-//    ChatProto.InitRoomRequest request = ChatProto.InitRoomRequest.newBuilder()
-//            .setFromUserName(fromUser)
-//            .setToUserName(toUser)
-//            .setRoomId(roomId)
-//            .setToken(token)
-//            .setG(g)
-//            .setP(p)
-//            .setPublicComponent(publicComponent)
-//            .build();
-//
-//    ChatProto.InitRoomResponse response = blockingStub.initRoom(request);
-//    return response.getAccepted();
+  public boolean sendInitRoomRequest(String fromUser, String toUser, String token, String publicComponent) {
+    ChatProto.InitRoomRequest request = ChatProto.InitRoomRequest.newBuilder()
+            .setFromUserName(fromUser)
+            .setToUserName(toUser)
+            .setToken(token)
+            .setPublicComponent(publicComponent)
+            .build();
 
-   // TODO сделать структуру запроса и обработчик
-
-    return false;
+    ChatProto.InitRoomResponse response = blockingStub.initRoom(request);
+    return response.getIsDelivered();
   }
 
 
