@@ -82,7 +82,8 @@ public class ChatController {
 
                             }
 
-                            case FILE -> {
+                            case FILE -> Platform.runLater(() ->
+                            {
                                 try {
                                     String name = msg.getFileName();
                                     Path dir = Paths.get("downloads");
@@ -106,8 +107,7 @@ public class ChatController {
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-                            }
-
+                            });
                         }
 
                     }
@@ -134,7 +134,7 @@ public class ChatController {
         ChatProto.SendMessageRequest request = ChatProto.SendMessageRequest.newBuilder()
                 .setFromUserName(username)
                 .setToUserName(secondName)
-                .setDateTime(Instant.now().toString())
+                .setDateTime(System.currentTimeMillis())
                 .setText(text)
                 .setType(ChatProto.MessageType.TEXT)
                 .build();
@@ -197,6 +197,8 @@ public class ChatController {
         StreamObserver<ChatProto.FileChunk> reqObs = asyncStub.sendFile(respObs);
         try (FileInputStream fis = new FileInputStream(file)) {
             int read;
+            long amountBytes = file.length();
+            long amountChunks = amountBytes / chunkSize;
             while ((read = fis.read(buffer)) != -1) {
                 index++;
                 ChatProto.FileChunk chunk = ChatProto.FileChunk.newBuilder()
@@ -206,10 +208,11 @@ public class ChatController {
                         .setData(ByteString.copyFrom(buffer, 0, read))
                         .setChunkNumber(index)
                         .setIsLast(false)
+                        .setAmountChunks(amountChunks)
                         .build();
                 reqObs.onNext(chunk);
             }
-            // последний маркер
+
             ChatProto.FileChunk last = ChatProto.FileChunk.newBuilder()
                     .setFromUserName(username)
                     .setToUserName(toUser)
@@ -217,6 +220,7 @@ public class ChatController {
                     .setData(ByteString.EMPTY)
                     .setChunkNumber(index + 1)
                     .setIsLast(true)
+                    .setAmountChunks(amountChunks)
                     .build();
             reqObs.onNext(last);
             reqObs.onCompleted();
@@ -227,26 +231,25 @@ public class ChatController {
 
 
     public void handleChooseFile() {
-        // 1. Получаем текущее окно (Stage) из любого UI-элемента
+
         Window window = messageList.getScene().getWindow();
 
-        // 2. Создаём и настраиваем FileChooser
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файл для отправки");
         // При желании — ограничить типы:
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Все файлы", "*.*"),
-                new FileChooser.ExtensionFilter("Изображения", "*.png", "*.jpg", "*.gif"),
-                new FileChooser.ExtensionFilter("Документы", "*.pdf", "*.docx", "*.txt")
-        );
+//        fileChooser.getExtensionFilters().addAll(
+//                new FileChooser.ExtensionFilter("Все файлы", "*.*"),
+//                new FileChooser.ExtensionFilter("Изображения", "*.png", "*.jpg", "*.gif"),
+//                new FileChooser.ExtensionFilter("Документы", "*.pdf", "*.docx", "*.txt")
+//        );
 
-        // 3. Показываем диалог
+
         File selectedFile = fileChooser.showOpenDialog(window);
         if (selectedFile != null) {
-            // 4. Обработка выбранного файла
+
             messageList.getItems().add("Вы выбрали: " + selectedFile.getName());
 
-            // например, сразу отправляем:
             sendFile(selectedFile, secondName);
         } else {
             messageList.getItems().add("Выбор файла отменён.");

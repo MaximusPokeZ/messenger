@@ -28,6 +28,7 @@ enum MessageType {
   INIT_ROOM = 1;
   IMAGE = 2;
   FILE = 3;
+  GIF = 4;
 }
 
 message SendMessageRequest {
@@ -37,6 +38,7 @@ message SendMessageRequest {
   int64 date_time = 4;
   string token = 5;
   MessageType type = 6;
+  // meta - info (token = GUID + CM + PM + IV) -> HMAC256
 }
 
 message InitRoomRequest {
@@ -58,6 +60,7 @@ message FileChunk {
   bytes data = 4;
   int32 chunk_number = 5;  // порядковый номер
   bool is_last = 6;  // последний ли чанк
+  int64 amount_chunks = 7;
 }
 
 //
@@ -95,5 +98,6 @@ message ChatMessage {
   int32 chunk_number = 8;
   string file_name = 9;
   bool is_last = 10;
+  int64 amount_chunks = 11;
 }
 

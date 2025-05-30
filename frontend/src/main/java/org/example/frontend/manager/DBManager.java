@@ -33,8 +33,8 @@ public class DBManager {
 
   public void init() {
     try {
-      String home = System.getProperty("user.home");
-      File dbDir = new File(home, ".securechat");
+      String home = System.getProperty("user.home");//user.downloads
+      File dbDir = new File(home, ".securechat");//.tmpStorage
       if (!dbDir.exists()) {
         boolean created = dbDir.mkdirs();
         if (!created) {

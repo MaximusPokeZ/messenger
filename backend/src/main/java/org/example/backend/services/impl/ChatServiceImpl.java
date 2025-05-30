@@ -8,9 +8,6 @@ import org.example.backend.dto.responses.UsernameResponse;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
-
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -114,16 +111,18 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
             String to;
             String from;
             String fname;
+            long amountChunks;
 
             @Override
             public void onNext(ChatProto.FileChunk chunk) {
-                // Сохраняем мета из первого чанка
+
                 if (from == null) {
                     from  = chunk.getFromUserName();
                     to    = chunk.getToUserName();
                     fname = chunk.getFileName();
+                    amountChunks = chunk.getAmountChunks();
                 }
-                // формируем ChatMessage-чанк
+
                 ChatProto.ChatMessage msg = ChatProto.ChatMessage.newBuilder()
                         .setFromUserName(from)
                         .setDateTime(System.currentTimeMillis())
@@ -132,6 +131,7 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
                         .setChunk(chunk.getData())
                         .setChunkNumber(chunk.getChunkNumber())
                         .setIsLast(chunk.getIsLast())
+                        .setAmountChunks(amountChunks)
                         .build();
 
                 var target = clients.get(to);
