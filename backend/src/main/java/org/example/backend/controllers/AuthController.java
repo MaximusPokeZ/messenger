@@ -10,6 +10,7 @@ import org.example.backend.services.RegisterLoginService;
 import org.example.backend.services.UserService;
 import org.example.backend.services.impl.ChatServiceImpl;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +23,14 @@ public class AuthController {
 
     private final RegisterLoginService registerLoginService;
 
+    private final PasswordEncoder passwordEncoder;
+
     private final ChatServiceImpl chatService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.OK)
     public TokenResponse register(@RequestBody UserRequest userRequest) {
-        return registerLoginService.register(userRequest.getUsername(), userRequest.getPassword());
+        return registerLoginService.register(userRequest.getUsername(), passwordEncoder.encode(userRequest.getPassword()));
     }
 
     @PostMapping("/login")

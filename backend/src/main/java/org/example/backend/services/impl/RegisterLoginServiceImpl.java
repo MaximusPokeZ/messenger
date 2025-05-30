@@ -8,6 +8,7 @@ import org.example.backend.dto.responses.TokenResponse;
 import org.example.backend.models.UserDb;
 import org.example.backend.services.RegisterLoginService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -19,6 +20,8 @@ import java.util.Date;
 public class RegisterLoginServiceImpl implements RegisterLoginService {
 
     private final UserDbService userService;
+
+    private final PasswordEncoder passwordEncoder;
 
 
     @Value("${jwt.secret}")
@@ -75,7 +78,7 @@ public class RegisterLoginServiceImpl implements RegisterLoginService {
 
         UserDb userFromDB = userService.findUserByUsername(username).get();
 
-        if (!password.equals(userFromDB.getPassword())) {
+        if (!passwordEncoder.matches(password, userFromDB.getPassword())) {
             log.info("password does not match!");
             return new TokenResponse();
         }

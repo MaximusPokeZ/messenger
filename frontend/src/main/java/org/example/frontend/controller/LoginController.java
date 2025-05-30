@@ -16,11 +16,17 @@ import org.example.frontend.model.LoginResponse;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 @Slf4j
 public class LoginController {
@@ -70,13 +76,28 @@ public class LoginController {
     try {
       String jsonBody = objectMapper.writeValueAsString(loginRequest);
 
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(null, new TrustManager[]{new X509TrustManager() {
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+      }}, new SecureRandom());
+
+      HttpClient client = HttpClient.newBuilder()
+              .sslContext(sslContext)
+              .connectTimeout(Duration.ofSeconds(10))
+              .build();
+
       HttpRequest request = HttpRequest.newBuilder()
-              .uri(URI.create("http://localhost:8080/auth/login"))
+              .uri(URI.create("https://localhost:8080/auth/login"))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
               .build();
 
-      HttpClient.newHttpClient()
+
+
+
+      client
               .sendAsync(request, HttpResponse.BodyHandlers.ofString())
               .thenAccept(response -> Platform.runLater(() -> {
                 loginButton.setDisable(false);
