@@ -10,11 +10,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.manager.SceneManager;
 import org.example.frontend.model.RegisterRequest;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 @Slf4j
 public class RegisterController {
@@ -71,13 +77,25 @@ public class RegisterController {
     try {
       String jsonBody = objectMapper.writeValueAsString(registerRequest);
 
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(null, new TrustManager[]{new X509TrustManager() {
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+      }}, new SecureRandom());
+
+      HttpClient client = HttpClient.newBuilder()
+              .sslContext(sslContext)
+              .connectTimeout(Duration.ofSeconds(10))
+              .build();
+
       HttpRequest httpRequest = HttpRequest.newBuilder()
-              .uri(URI.create("http://localhost:8080/auth/register"))
+              .uri(URI.create("https://localhost:8080/auth/register"))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
               .build();
 
-     HttpClient.newHttpClient()
+     client
               .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
               .thenAccept(response -> Platform.runLater(() -> {
                 registerButton.setDisable(false);
@@ -102,6 +120,8 @@ public class RegisterController {
 
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
+    } catch (Exception e) {
+      showError("Json error " + e.getMessage());
     }
 
   }

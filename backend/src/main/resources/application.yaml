@@ -1,5 +1,19 @@
+#server:
+#  port: 8080
+
+
 server:
   port: 8080
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: 111111
+    key-store-type: PKCS12
+    key-alias: myapp
+
+  http:
+    port: 8081
+
 
 spring:
   datasource:
@@ -10,15 +24,17 @@ spring:
 
   h2:
     console:
-      enabled: true  # (http://localhost:8080/h2-console)
+      enabled: true  # (http://localhost:8081/h2-console)
       path: /h2-console
+      settings:
+        web-allow-others: true
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: update  #create-drop
     show-sql: true
 
-  security:
+  security: #only basic not ssat
     user:
       name: admin
       password: "{noop}admin"
@@ -39,3 +55,4 @@ grpc:
     port: 50051
     security:
       enabled: false
+

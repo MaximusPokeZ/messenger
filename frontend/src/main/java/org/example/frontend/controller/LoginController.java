@@ -12,11 +12,17 @@ import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.LoginRequest;
 import org.example.frontend.model.LoginResponse;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 @Slf4j
 public class LoginController {
@@ -63,21 +69,40 @@ public class LoginController {
     try {
       String jsonBody = objectMapper.writeValueAsString(loginRequest);
 
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(null, new TrustManager[]{new X509TrustManager() {
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+        public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+      }}, new SecureRandom());
+
+      HttpClient client = HttpClient.newBuilder()
+              .sslContext(sslContext)
+              .connectTimeout(Duration.ofSeconds(10))
+              .build();
+
       HttpRequest request = HttpRequest.newBuilder()
-              .uri(URI.create("http://localhost:8080/auth/login"))
+              .uri(URI.create("https://localhost:8080/auth/login"))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
               .build();
 
-      HttpClient.newHttpClient()
+
+
+
+      client
               .sendAsync(request, HttpResponse.BodyHandlers.ofString())
               .thenAccept(response -> Platform.runLater(() -> {
                 loginButton.setDisable(false);
+                log.info("STATUS CODE {}", response.statusCode());
                 if (response.statusCode() == 200) {
                   try {
                     LoginResponse loginResponse = objectMapper.readValue(response.body(), LoginResponse.class);
                     String token = loginResponse.getToken();
-                    log.info("JWT received");
+
+                    if (token == null) {
+                      throw new RuntimeException();
+                    }
 
                     JwtStorage.setToken(token);
                     JwtStorage.setUsername(username);
@@ -88,6 +113,8 @@ public class LoginController {
                     showError("Error processing token: " + response.statusCode());
                   } catch (IOException e) {
                       throw new RuntimeException(e);
+                  } catch (RuntimeException e) {
+                    showError("Need registration!");
                   }
                 } else {
                   showError("Error with login: " + response.body());
@@ -96,7 +123,7 @@ public class LoginController {
               .exceptionally(ex -> {
                 Platform.runLater(() -> {
                   loginButton.setDisable(false);
-                  showError("Network error: " + ex.getMessage());
+                  showError("Network error or need reg: " + ex.getMessage());
                 });
                 return null;
               });
