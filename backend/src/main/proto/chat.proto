@@ -11,6 +11,8 @@ service ChatService {
 
   rpc initRoom(InitRoomRequest) returns (InitRoomResponse);
 
+  rpc SendFile(stream FileChunk) returns (SendMessageResponse);
+
 }
 
 message Empty{
@@ -24,6 +26,8 @@ message ConnectRequest {
 enum MessageType {
   TEXT = 0;
   INIT_ROOM = 1;
+  IMAGE = 2;
+  FILE = 3;
 }
 
 message SendMessageRequest {
@@ -45,6 +49,15 @@ message InitRoomRequest {
 
 message InitRoomResponse {
   bool is_delivered = 1;
+}
+
+message FileChunk {
+  string from_user_name = 1;
+  string to_user_name = 2;
+  string file_name = 3;
+  bytes data = 4;
+  int32 chunk_number = 5;  // порядковый номер
+  bool is_last = 6;  // последний ли чанк
 }
 
 //
@@ -77,5 +90,10 @@ message ChatMessage {
   MessageType type = 4;
   string token = 5;
   string public_exponent = 6;
+  // FILE
+  bytes chunk = 7;
+  int32 chunk_number = 8;
+  string file_name = 9;
+  bool is_last = 10;
 }
 
