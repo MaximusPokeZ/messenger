@@ -126,7 +126,7 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
                 // формируем ChatMessage-чанк
                 ChatProto.ChatMessage msg = ChatProto.ChatMessage.newBuilder()
                         .setFromUserName(from)
-                        .setDateTime(Instant.now().toString())
+                        .setDateTime(System.currentTimeMillis())
                         .setType(ChatProto.MessageType.FILE)
                         .setFileName(fname)
                         .setChunk(chunk.getData())
