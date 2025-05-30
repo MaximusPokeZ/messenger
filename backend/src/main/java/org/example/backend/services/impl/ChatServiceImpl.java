@@ -9,6 +9,7 @@ import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -104,5 +105,50 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
 
     public List<UsernameResponse> getOnlineUsernames() {
         return clients.keySet().stream().map(UsernameResponse::new).toList();
+    }
+
+    @Override
+    public StreamObserver<ChatProto.FileChunk> sendFile(StreamObserver<ChatProto.SendMessageResponse> rep) {
+        return new StreamObserver<>() {
+            String to;
+            String from;
+            String fname;
+
+            @Override
+            public void onNext(ChatProto.FileChunk chunk) {
+                // Сохраняем мета из первого чанка
+                if (from == null) {
+                    from  = chunk.getFromUserName();
+                    to    = chunk.getToUserName();
+                    fname = chunk.getFileName();
+                }
+                // формируем ChatMessage-чанк
+                ChatProto.ChatMessage msg = ChatProto.ChatMessage.newBuilder()
+                        .setFromUserName(from)
+                        .setDateTime(Instant.now().toString())
+                        .setType(ChatProto.MessageType.FILE)
+                        .setFileName(fname)
+                        .setChunk(chunk.getData())
+                        .setChunkNumber(chunk.getChunkNumber())
+                        .setIsLast(chunk.getIsLast())
+                        .build();
+
+                var target = clients.get(to);
+                if (target != null) {
+                    target.onNext(msg);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                t.printStackTrace();
+            }
+
+            @Override
+            public void onCompleted() {
+                rep.onNext(ChatProto.SendMessageResponse.newBuilder().setDelivered(true).build());
+                rep.onCompleted();
+            }
+        };
     }
 }

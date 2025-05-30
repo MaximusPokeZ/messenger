@@ -4,30 +4,96 @@ option java_package = "org.example.shared";
 option java_outer_classname = "ChatProto";
 
 service ChatService {
+
   rpc Connect(ConnectRequest) returns (stream ChatMessage) {}
 
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
+
+  rpc initRoom(InitRoomRequest) returns (InitRoomResponse);
+
+  rpc SendFile(stream FileChunk) returns (SendMessageResponse);
+
+}
+
+message Empty{
+
 }
 
 message ConnectRequest {
   string user_name = 1;
 }
 
-message SendMessageRequest {
-  string from_user_name = 1;
-  string to_user_name = 2;
-  string text = 3;
-  string date_time = 4;
+enum MessageType {
+  TEXT = 0;
+  INIT_ROOM = 1;
+  IMAGE = 2;
+  FILE = 3;
 }
 
+message SendMessageRequest {
+  string from_user_name = 1;
+  string to_user_name = 2;  // ID получателя
+  string text = 3;
+  string date_time = 4;
+  MessageType type = 5;
+  // meta - info (token = GUID + CM + PM + IV) -> HMAC256
+}
+
+message InitRoomRequest {
+  string from_user_name = 1;
+  string to_user_name = 2;
+  string token = 3;
+  string public_component = 4;
+  MessageType type = 5;
+}
+
+message InitRoomResponse {
+  bool is_delivered = 1;
+}
+
+message FileChunk {
+  string from_user_name = 1;
+  string to_user_name = 2;
+  string file_name = 3;
+  bytes data = 4;
+  int32 chunk_number = 5;  // порядковый номер
+  bool is_last = 6;  // последний ли чанк
+}
+
+//
+// initRoomRequest
+
+// from
+// to user
+// meta (выше)
+// A (g,p)
+//
+
+// ответ на запрос о создании комнаты
+// answer B
+//
+
+//owner может удалить чат -> Сообщения удалятся у обоих
+//owner только удаляет subs -> сообщения у создаьтеля остаются и комната, а у subs удаляется комната (и каскадно все сообщения)
+// owner покинет чат -> у него удаляются сообщения, но subs становится owner (у него сообщения не удаляются)
+// subs удаляется сам -> сообщения удаляются только у subs
+// после каждого из этих случаев нужно выполнять initRoomRequest
+
 message SendMessageResponse {
-  bool delivered = 1;
+  bool delivered = 1;  // true, если получатель онлайн
 }
 
 message ChatMessage {
   string from_user_name = 1;
   string text = 2;
   string date_time = 3;
+  MessageType type = 4;
+  string token = 5;
+  string public_exponent = 6;
+  // FILE
+  bytes chunk = 7;
+  int32 chunk_number = 8;
+  string file_name = 9;
+  bool is_last = 10;
 }
-
 
