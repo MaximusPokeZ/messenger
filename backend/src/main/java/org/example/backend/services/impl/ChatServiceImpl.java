@@ -82,6 +82,7 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
                         .setFromUserName(request.getFromUserName())
                         .setText(request.getText())
                         .setDateTime(request.getDateTime())
+                        .setToken(request.getToken())
                         .build();
 
 
