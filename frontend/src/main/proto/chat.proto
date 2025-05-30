@@ -9,10 +9,17 @@ service ChatService {
 
   // Отправка сообщения (unary: один запрос → один ответ с bool)
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
+
+  rpc initRoom(InitRoomRequest) returns (InitRoomResponse);
 }
 
 message ConnectRequest {
   string user_name = 1;
+}
+
+enum MessageType {
+  TEXT = 0;
+  INIT_ROOM = 1;
 }
 
 message SendMessageRequest {
@@ -20,7 +27,22 @@ message SendMessageRequest {
   string to_user_name = 2;  // ID получателя
   string text = 3;
   string date_time = 4;
+  MessageType type = 5;
   // meta - info (token = GUID + CM + PM + IV) -> HMAC256
+}
+
+message InitRoomRequest {
+  string from_user_name = 1;
+  string to_user_name = 2;
+  string token = 3;
+  string g = 4;
+  string p = 5;
+  string public_component = 6;
+  MessageType type = 7;
+}
+
+message InitRoomResponse {
+  bool accepted = 1;
 }
 
 //

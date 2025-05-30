@@ -1,5 +1,6 @@
 package org.example.frontend.manager;
 
+import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -82,6 +83,25 @@ public class GrpcClient {
 
     ChatProto.SendMessageResponse response = blockingStub.sendMessage(request);
     return response.getDelivered();
+  }
+
+  public boolean sendInitRoomRequest(String fromUser, String toUser, String roomId, String token, String g, String p, String publicComponent) {
+//    ChatProto.InitRoomRequest request = ChatProto.InitRoomRequest.newBuilder()
+//            .setFromUserName(fromUser)
+//            .setToUserName(toUser)
+//            .setRoomId(roomId)
+//            .setToken(token)
+//            .setG(g)
+//            .setP(p)
+//            .setPublicComponent(publicComponent)
+//            .build();
+//
+//    ChatProto.InitRoomResponse response = blockingStub.initRoom(request);
+//    return response.getAccepted();
+
+   // TODO сделать структуру запроса и обработчик
+
+    return false;
   }
 
 

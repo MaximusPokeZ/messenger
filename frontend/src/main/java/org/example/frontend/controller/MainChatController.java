@@ -125,8 +125,30 @@ public class MainChatController {
             () -> log.info("Disconnected from server"),
             Throwable::printStackTrace
     );
+//    grpcClient.connect(
+//            currentUserName,
+//            msg -> Platform.runLater(() -> {
+//              switch (msg.getType()) {
+//                case TEXT -> handleTextMessage(msg);
+//                case INIT_ROOM -> handleInitRoomMessage(msg);
+//                // Добавляй другие типы сообщений по мере необходимости
+//                default -> handleUnknownMessage(msg);
+//              }
+//            }),
+//            () -> log.info("Disconnected from server"),
+//            Throwable::printStackTrace
+//    );
 
     searchResultsPanel.setVisible(false);
+  }
+
+  private void handleUnknownMessage(ChatProto.ChatMessage msg) {
+  }
+
+  private void handleInitRoomMessage(ChatProto.ChatMessage msg) {
+  }
+
+  private void handleTextMessage(ChatProto.ChatMessage msg) {
   }
 
   @FXML
@@ -251,14 +273,29 @@ public class MainChatController {
 
   private void sendInitRoomRequest(String toUser, String token, String roomId) {
 
-
     //TODO : послать запрос на создание комнаты у другого юзера + там же диффи хелман
 
+    String g = "5";
+    String p = "23";
+
+    String publicComponent = ""; //  = DiffieHellman.generatePublicComponent(g, p);
+
+    boolean accepted = grpcClient.sendInitRoomRequest(
+            currentUserName, toUser, roomId, token, g, p, publicComponent
+    );
+
+    if (accepted) {
+      log.info("User {} accepted room creation", toUser);
+    } else {
+      log.warn("User {} rejected room creation", toUser);
+    }
 
   }
 
   @FXML
   private void onSendMessage() {
+
+    // TODO токен надо всегда генерировать в зависимости если у нас чтото помннялось в комнате
     String text = messageInputField.getText().trim();
     if (text.isEmpty()) return;
     messageInputField.clear();
@@ -300,6 +337,9 @@ public class MainChatController {
       currentChat.setIv(settings.getIv());
 
       DaoManager.getChatRoomDao().update(currentChat);
+
+      //TODO : послать запрос на изменение комнаты у другого юзера или просто послать сообщение новое
+      // в котором будет наш токен в котором уже будет обновленная информация
 
       openChat(currentChat);
     });
