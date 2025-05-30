@@ -6,27 +6,29 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.httpToSpring.ChatApiClient;
-import org.example.frontend.manager.DBManager;
-import org.example.frontend.manager.DaoManager;
-import org.example.frontend.manager.GrpcClient;
-import org.example.frontend.manager.SceneManager;
+import org.example.frontend.manager.*;
 import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
 import org.example.frontend.model.main.Message;
 import org.example.frontend.model.main.User;
+import org.example.frontend.utils.DiffieHellman;
 import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -88,6 +90,7 @@ public class MainChatController {
     DBManager.initInstance(currentUserName);
     DaoManager.init();
 
+    userLabel.setText(currentUserName);
     chatDetailsPane.setDisable(true);
 
     chatRooms = DaoManager.getChatRoomDao().findAll();
@@ -136,13 +139,118 @@ public class MainChatController {
   }
 
   private void handleInitRoomMessage(ChatProto.ChatMessage msg) {
-    // TODO проверка на наличие комнаты такой
-    //grpcClient.sendInitRoomRequest(msg.) //TODO тут не менять отправителя и получателя местами!
+    String fromUser = msg.getFromUserName();
+    String token = msg.getToken();
+    String roomId = RoomTokenEncoder.decode(token).guid();
+
+    Optional<ChatRoom> existing = DaoManager.getChatRoomDao().findByRoomId(roomId);
+
+    if (existing.isEmpty()) {
+      ChatRoom room = ChatRoom.builder()
+              .roomId(roomId)
+              .owner(currentUserName)
+              .otherUser(fromUser)
+              .cipher(RoomTokenEncoder.decode(token).cipher())
+              .cipherMode(RoomTokenEncoder.decode(token).cipherMode())
+              .paddingMode(RoomTokenEncoder.decode(token).paddingMode())
+              .iv(RoomTokenEncoder.decode(token).IV())
+              .build();
+
+      DaoManager.getChatRoomDao().insert(room);
+      chatRooms.add(room);
+      updateChatListUI();
+
+      String g = "5";
+      String p = "23";
+      DiffieHellman dh = new DiffieHellman(g, p);
+      dh.getKey(new BigInteger(msg.getPublicExponent()));
+      DiffieHellmanManager.put(roomId, dh);
+
+      grpcClient.sendInitRoomRequest(
+              currentUserName, fromUser, token, dh.getPublicComponent().toString()
+      );
+
+      log.info("Room '{}' initialized with user '{}'", roomId, fromUser);
+
+    } else {
+      DiffieHellman dh = DiffieHellmanManager.get(roomId);
+      if (dh == null) {
+        log.warn("No DH context found for room: {}", roomId);
+        return;
+      }
+
+      dh.getKey(new BigInteger(msg.getPublicExponent()));
+      log.info("Shared key get for room {} ", roomId);
+    }
   }
 
+
   private void handleTextMessage(ChatProto.ChatMessage msg) {
-    // TODO нужно извлечь из токена roomId и записать в нужное место
+    RoomTokenEncoder.DecodedRoomToken decodedToken;
+    try {
+      decodedToken = RoomTokenEncoder.decode(msg.getToken());
+    } catch (Exception e) {
+      log.error("Failed to decode token: {}", msg.getToken(), e);
+      return;
+    }
+
+    String roomId = decodedToken.guid();
+    Optional<ChatRoom> optionalRoom = DaoManager.getChatRoomDao().findByRoomId(roomId);
+
+    if (optionalRoom.isEmpty()) {
+      log.warn("No chat room found for message: {}", msg);
+      return;
+    }
+
+    ChatRoom room = optionalRoom.get();
+
+    boolean changed = !room.getCipher().equals(decodedToken.cipher()) ||
+            !room.getCipherMode().equals(decodedToken.cipherMode()) ||
+            !room.getPaddingMode().equals(decodedToken.paddingMode()) ||
+            !room.getIv().equals(decodedToken.IV());
+
+    if (changed) {
+      log.info("Room settings changed for room '{}'. Updating...", roomId);
+      room.setCipher(decodedToken.cipher());
+      room.setCipherMode(decodedToken.cipherMode());
+      room.setPaddingMode(decodedToken.paddingMode());
+      room.setIv(decodedToken.IV());
+
+      DaoManager.getChatRoomDao().update(room);
+
+      for (int i = 0; i < chatRooms.size(); i++) {
+        if (chatRooms.get(i).getRoomId().equals(roomId)) {
+          chatRooms.set(i, room);
+          break;
+        }
+      }
+
+      if (currentChat != null && currentChat.getRoomId().equals(roomId)) {
+        currentChat = room;
+        cipherLabel.setText("Cipher: " + room.getCipher());
+        modeLabel.setText("Mode: " + room.getCipherMode());
+        paddingLabel.setText("Padding: " + room.getPaddingMode());
+        ivLabel.setText("IV: " + room.getIv());
+      }
+    }
+
+    Message message = Message.builder()
+            .roomId(roomId)
+            .sender(msg.getFromUserName())
+            .timestamp(msg.getDateTime())
+            .content(msg.getText())
+            .build();
+
+    DaoManager.getMessageDao().insert(message);
+
+    if (currentChat != null && currentChat.getRoomId().equals(roomId)) {
+      messagesContainer.getChildren().add(createMessageBubble(message));
+      messagesScrollPane.layout();
+      messagesScrollPane.setVvalue(1.0);
+    }
   }
+
+
 
   @FXML
   private void onLogoutClick() {
@@ -232,6 +340,8 @@ public class MainChatController {
   private void openChat(ChatRoom room) {
     this.currentChat = room;
 
+    sendButton.setDisable(false);
+    messageInputField.setDisable(false);
     chatDetailsPane.setDisable(false);
 
     cipherLabel.setText("Cipher: " + room.getCipher());
@@ -254,25 +364,37 @@ public class MainChatController {
   }
 
   private Node createMessageBubble(Message message) {
-    Label label = new Label(String.format("[%s] %s: %s",
+    Label label = new Label(String.format("[%s] %s",
             Instant.ofEpochMilli(message.getTimestamp()),
-            message.getSender(),
             message.getContent()
     ));
     label.setWrapText(true);
     label.setMaxWidth(300);
-    label.setStyle("-fx-background-color: #e0e0e0; -fx-padding: 10; -fx-background-radius: 10;");
-    return label;
+    label.setStyle("-fx-padding: 10; -fx-background-radius: 10;");
+
+    HBox bubble = new HBox(label);
+    bubble.setPadding(new Insets(5));
+
+    if (message.getSender().equals(currentUserName)) {
+      bubble.setAlignment(Pos.CENTER_LEFT);
+      label.setStyle(label.getStyle() + "-fx-background-color: #d0ffd0;");
+    } else {
+      bubble.setAlignment(Pos.CENTER_RIGHT);
+      label.setStyle(label.getStyle() + "-fx-background-color: #d0d0ff;");
+    }
+
+    return bubble;
   }
 
+
   private void sendInitRoomRequest(String toUser, String token, String roomId) {
-
-    //TODO : послать запрос на создание комнаты у другого юзера + там же диффи хелман
-
     String g = "5";
     String p = "23";
 
-    String publicComponent = ""; //  = DiffieHellman.generatePublicComponent(g, p);
+    DiffieHellman dh = new DiffieHellman(g, p);
+    String publicComponent = dh.getPublicComponent().toString();
+
+    DiffieHellmanManager.put(roomId, dh);
 
     boolean accepted = grpcClient.sendInitRoomRequest(
             currentUserName, toUser, token, publicComponent
@@ -283,29 +405,50 @@ public class MainChatController {
     } else {
       log.warn("User {} rejected room creation", toUser);
     }
-
   }
+
 
   @FXML
   private void onSendMessage() {
-
-    // TODO токен надо всегда генерировать в зависимости если у нас чтото помннялось в комнате
     String text = messageInputField.getText().trim();
     if (text.isEmpty()) return;
     messageInputField.clear();
 
-    String recipient = currentUserName.equals("max") ? "sasha" : "max";
+    ChatRoom room = currentChat;
+    if (room == null) return;
 
-    boolean delivered = grpcClient.sendMessage(currentUserName, recipient, text);
+    String token = RoomTokenEncoder.encode(
+            room.getRoomId(),
+            room.getCipher(),
+            room.getCipherMode(),
+            room.getPaddingMode(),
+            room.getIv()
+    );
+
+    long timestamp = System.currentTimeMillis();
+
+    boolean delivered = grpcClient.sendMessage(
+            currentUserName,
+            room.getOtherUser(),
+            text,
+            token
+    );
+
     if (delivered) {
-      Platform.runLater(() -> log.info(
-              "[{}] from: {}: {}",
-              Instant.now(),
-              currentUserName,
-              text
-      ));
+      Message message = Message.builder()
+              .roomId(room.getRoomId())
+              .sender(currentUserName)
+              .timestamp(timestamp)
+              .content(text)
+              .build();
+
+      DaoManager.getMessageDao().insert(message);
+      messagesContainer.getChildren().add(createMessageBubble(message));
+      messagesScrollPane.layout();
+      messagesScrollPane.setVvalue(1.0);
     }
   }
+
 
   @FXML
   private void onCloseSearchClick() {
