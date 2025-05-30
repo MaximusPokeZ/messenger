@@ -4,7 +4,9 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,9 @@ import org.example.frontend.manager.SceneManager;
 import org.example.frontend.model.JwtStorage;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
+import org.example.frontend.model.main.Message;
 import org.example.frontend.model.main.User;
+import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
@@ -35,6 +39,16 @@ public class MainChatController {
 
   private final GrpcClient grpcClient = GrpcClient.getInstance();
 
+  @FXML
+  private TitledPane chatDetailsPane;
+  @FXML
+  private Label cipherLabel;
+  @FXML
+  private Label modeLabel;
+  @FXML
+  private Label paddingLabel;
+  @FXML
+  private Label ivLabel;
   @FXML
   private Label userLabel;
   @FXML
@@ -73,6 +87,32 @@ public class MainChatController {
   public void initialize() {
     DBManager.initInstance(currentUserName);
     DaoManager.init();
+
+    chatDetailsPane.setDisable(true);
+
+    chatRooms = DaoManager.getChatRoomDao().findAll();
+    updateChatListUI();
+
+    chatListView.setOnMouseClicked(event -> {
+      if (event.getClickCount() == 1) {
+        ChatRoom room = chatListView.getSelectionModel().getSelectedItem();
+        if (room != null) {
+          openChat(room);
+        }
+      }
+    });
+
+    chatListView.setCellFactory(lv -> new ListCell<>() {
+      @Override
+      protected void updateItem(ChatRoom room, boolean empty) {
+        super.updateItem(room, empty);
+        if (empty || room == null) {
+          setText(null);
+        } else {
+          setText(room.getOtherUser() + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
+        }
+      }
+    });
 
     grpcClient.connect(
             currentUserName,
@@ -161,8 +201,52 @@ public class MainChatController {
 
       chatRooms.add(chatRoom);
       DaoManager.getChatRoomDao().insert(chatRoom);
+
+      updateChatListUI();
       sendInitRoomRequest(username, token, guid);
+
+      openChat(chatRoom);
     });
+  }
+
+  private void updateChatListUI() {
+    chatListView.setItems(FXCollections.observableArrayList(chatRooms));
+  }
+
+  private void openChat(ChatRoom room) {
+    this.currentChat = room;
+
+    chatDetailsPane.setDisable(false);
+
+    cipherLabel.setText("Cipher: " + room.getCipher());
+    modeLabel.setText("Mode: " + room.getCipherMode());
+    paddingLabel.setText("Padding: " + room.getPaddingMode());
+    ivLabel.setText("IV: " + room.getIv());
+
+    chatTitleLabel.setText(room.getOtherUser());
+    chatStatusLabel.setText("Online"); // пока захардкожено, можно расширить
+
+    messagesContainer.getChildren().clear();
+
+    List<Message> messages = DaoManager.getMessageDao().findByRoomId(room.getRoomId());
+    for (Message msg : messages) {
+      messagesContainer.getChildren().add(createMessageBubble(msg));
+    }
+
+    messagesScrollPane.layout();
+    messagesScrollPane.setVvalue(1.0);
+  }
+
+  private Node createMessageBubble(Message message) {
+    Label label = new Label(String.format("[%s] %s: %s",
+            Instant.ofEpochMilli(message.getTimestamp()),
+            message.getSender(),
+            message.getContent()
+    ));
+    label.setWrapText(true);
+    label.setMaxWidth(300);
+    label.setStyle("-fx-background-color: #e0e0e0; -fx-padding: 10; -fx-background-radius: 10;");
+    return label;
   }
 
   private void sendInitRoomRequest(String toUser, String token, String roomId) {
@@ -199,4 +283,25 @@ public class MainChatController {
     searchField.clear();
   }
 
+  @FXML
+  private void onEditSettingsClick() {
+    if (currentChat == null) return;
+
+    ChatSettingsDialog dialog = new ChatSettingsDialog();
+    dialog.setTitle("Edit Encryption Settings");
+
+    dialog.setInitialSettings(currentChat);
+
+    Optional<ChatSetting> result = dialog.showAndWait();
+    result.ifPresent(settings -> {
+      currentChat.setCipher(settings.getCipher());
+      currentChat.setCipherMode(settings.getCipherMode());
+      currentChat.setPaddingMode(settings.getPaddingMode());
+      currentChat.setIv(settings.getIv());
+
+      DaoManager.getChatRoomDao().update(currentChat);
+
+      openChat(currentChat);
+    });
+  }
 }

@@ -12,6 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
+<?import javafx.scene.control.TitledPane?>
 <BorderPane xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.frontend.controller.MainChatController">
     <top>
         <VBox>
@@ -59,18 +60,43 @@
             </VBox>
 
             <VBox HBox.hgrow="ALWAYS">
-                <HBox alignment="CENTER_LEFT">
+                <HBox alignment="CENTER_LEFT" spacing="20">
                     <padding>
                         <Insets bottom="10.0" left="15.0" right="15.0" top="10.0" />
                     </padding>
-                    <Label fx:id="chatTitleLabel" text="Select chat">
+
+                    <Label fx:id="chatTitleLabel" text="Select chat" HBox.hgrow="NEVER">
                         <font>
                             <Font name="System Bold" size="16.0" />
                         </font>
+                        <HBox.margin>
+                            <Insets right="10.0" />
+                        </HBox.margin>
                     </Label>
+
                     <Region HBox.hgrow="ALWAYS" />
-                    <Label fx:id="chatStatusLabel" />
+
+                    <TitledPane fx:id="chatDetailsPane" text="Room Settings" expanded="false" HBox.hgrow="NEVER">
+                        <VBox spacing="5.0">
+                            <padding>
+                                <Insets top="10.0" right="10.0" bottom="10.0" left="10.0"/>
+                            </padding>
+                            <Label fx:id="cipherLabel" text="Cipher:"/>
+                            <Label fx:id="modeLabel" text="Mode:"/>
+                            <Label fx:id="paddingLabel" text="Padding:"/>
+                            <Label fx:id="ivLabel" text="IV" wrapText="true" />
+                            <Button text="Edit Settings" onAction="#onEditSettingsClick"/>
+                        </VBox>
+                        <HBox.margin>
+                            <Insets left="10.0" right="10.0" />
+                        </HBox.margin>
+                    </TitledPane>
+
+                    <Region HBox.hgrow="ALWAYS" />
+
+                    <Label fx:id="chatStatusLabel" HBox.hgrow="NEVER" />
                 </HBox>
+
 
                 <ScrollPane fx:id="messagesScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS">
                     <VBox fx:id="messagesContainer" spacing="5.0">

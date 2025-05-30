@@ -61,7 +61,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(9, room.getIv());
       stmt.executeUpdate();
 
-      log.info("Inserted chat_room {}", room.getRoomId());
+      log.info("Inserted chat_room {} to {} ", room.getRoomId(), room.getOwner());
     } catch (SQLException e) {
       throw new RuntimeException("Failed to insert chat room", e);
     }
@@ -78,6 +78,29 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.executeUpdate();
     } catch (SQLException e) {
       throw new RuntimeException("Failed to update last message", e);
+    }
+  }
+
+  @Override
+  public void update(ChatRoom room) {
+    String sql = "UPDATE chat_rooms SET owner = ?, other_user = ?, last_message = ?, last_message_time = ?, cipher = ?, cipher_mode = ?, padding_mode = ?, iv = ? WHERE room_id = ?";
+
+    try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+      stmt.setString(1, room.getOwner());
+      stmt.setString(2, room.getOtherUser());
+      stmt.setString(3, room.getLastMessage());
+      stmt.setLong(4, room.getLastMessageTime());
+      stmt.setString(5, room.getCipher());
+      stmt.setString(6, room.getCipherMode());
+      stmt.setString(7, room.getPaddingMode());
+      stmt.setString(8, room.getIv());
+      stmt.setString(9, room.getRoomId());
+
+      stmt.executeUpdate();
+
+      log.info("Updated chat_room {} to {} ", room.getRoomId(), room.getOwner());
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to update chat room", e);
     }
   }
 

@@ -3,6 +3,7 @@ package org.example.frontend.dialog;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
 
 import java.security.SecureRandom;
@@ -84,5 +85,12 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     byte[] iv = new byte[16];
     new SecureRandom().nextBytes(iv);
     return Base64.getEncoder().encodeToString(iv);
+  }
+
+  public void setInitialSettings(ChatRoom room) {
+    cipherBox.setValue(room.getCipher());
+    cipherModeCombo.setValue(room.getCipherMode());
+    paddingModeCombo.setValue(room.getPaddingMode());
+    ivField.setText(room.getIv());
   }
 }
