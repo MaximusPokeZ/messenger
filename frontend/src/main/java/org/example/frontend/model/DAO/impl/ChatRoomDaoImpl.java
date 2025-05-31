@@ -25,8 +25,8 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
     String sql = """
             CREATE TABLE IF NOT EXISTS chat_rooms (
                   room_id TEXT PRIMARY KEY,
-                  owner TEXT NOT NULL,
-                  other_user TEXT NOT NULL,
+                  owner TEXT NULL,
+                  other_user TEXT NULL,
                   last_message TEXT,
                   last_message_time INTEGER,
                   cipher TEXT,
@@ -178,4 +178,5 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       throw new RuntimeException("Failed to delete all chat room", e);
     }
   }
+
 }

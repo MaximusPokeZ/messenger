@@ -104,7 +104,6 @@ public class MessageDaoImpl implements MessageDao {
     }
   }
 
-  // Добавим метод для удаления сообщений конкретной комнаты
   @Override
   public void deleteByRoomId(String roomId) {
     String sql = "DELETE FROM messages WHERE room_id = ?";

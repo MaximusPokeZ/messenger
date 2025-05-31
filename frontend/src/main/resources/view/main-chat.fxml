@@ -94,8 +94,16 @@
 
                     <Region HBox.hgrow="ALWAYS" />
 
+                    <Button fx:id="leaveChatButton" text="Leave Chat" onAction="#onLeaveChatClick">
+                        <HBox.margin>
+                            <Insets left="10.0" right="10.0" />
+                        </HBox.margin>
+                    </Button>
+                    <Button fx:id="inviteUserButton" text="Invite User" onAction="#onInviteUserClick" visible="false"/>
+
                     <Label fx:id="chatStatusLabel" HBox.hgrow="NEVER" />
                 </HBox>
+
 
 
                 <ScrollPane fx:id="messagesScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS">

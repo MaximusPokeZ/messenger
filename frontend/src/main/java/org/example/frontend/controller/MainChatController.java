@@ -2,6 +2,7 @@ package org.example.frontend.controller;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -44,6 +45,10 @@ public class MainChatController {
 
   private final GrpcClient grpcClient = GrpcClient.getInstance();
 
+  @FXML
+  private Button inviteUserButton;
+  @FXML
+  private Button leaveChatButton;
   @FXML
   private TitledPane chatDetailsPane;
   @FXML
@@ -99,6 +104,9 @@ public class MainChatController {
 
     userLabel.setText(currentUserName);
     chatDetailsPane.setDisable(true);
+    leaveChatButton.setDisable(true);
+    inviteUserButton.setDisable(true);
+    inviteUserButton.setVisible(false);
 
     chatRooms = DaoManager.getChatRoomDao().findAll();
     updateChatListUI();
@@ -127,14 +135,16 @@ public class MainChatController {
     grpcClient.connect(
             currentUserName,
             msg -> Platform.runLater(() -> {
-                      switch(msg.getType()) {
-                        case ChatProto.MessageType.TEXT -> handleTextMessage(msg);
-                        case ChatProto.MessageType.INIT_ROOM -> handleInitRoomMessage(msg);
-                        case ChatProto.MessageType.FILE -> handleFileMessage(msg);
-                        default -> throw new UnsupportedOperationException("Unsupported chat type: " + msg.getType());
-                      }
-            }
-                    ),
+              switch (msg.getType()) {
+                case TEXT -> handleTextMessage(msg);
+                case INIT_ROOM -> handleInitRoomMessage(msg);
+                case FILE -> handleFileMessage(msg);
+                case DELETE_CHAT, REMOVE_USER -> handleDeleteChat(msg);
+                case OWNER_LEFT -> handleOwnerLeft(msg);
+                case SELF_LEFT -> handleSelfLeft(msg);
+                default -> throw new UnsupportedOperationException("Unsupported chat type: " + msg.getType());
+              }
+            }),
             () -> log.info("Disconnected from server"),
             Throwable::printStackTrace
     );
@@ -143,8 +153,48 @@ public class MainChatController {
     searchResultsPanel.setVisible(false);
   }
 
-  private void handleUnknownMessage(ChatProto.ChatMessage msg) {
+  private void handleSelfLeft(ChatProto.ChatMessage msg) {
+    String roomId = RoomTokenEncoder.decode(msg.getToken()).guid();
+
+    DaoManager.getMessageDao().deleteByRoomId(roomId);
+    DaoManager.getChatRoomDao().delete(roomId);
+
+    chatRooms.remove(currentChat);
+    currentChat = null;
+
+    reloadChatListUI(true);
+
+    log.info("You have left the chat {}", roomId);
   }
+
+  private void handleOwnerLeft(ChatProto.ChatMessage msg) {
+    String roomId = RoomTokenEncoder.decode(msg.getToken()).guid();
+
+    ChatRoom room = DaoManager.getChatRoomDao().findByRoomId(roomId)
+            .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+    room.setOwner(currentUserName);
+    DaoManager.getChatRoomDao().update(room);
+
+    reloadChatListUI(false);
+
+    log.info("Owner left chat {}. New owner is {}", roomId, currentUserName);
+  }
+
+  private void handleDeleteChat(ChatProto.ChatMessage msg) {
+    String roomId = RoomTokenEncoder.decode(msg.getToken()).guid();
+
+    DaoManager.getMessageDao().deleteByRoomId(roomId);
+    DaoManager.getChatRoomDao().delete(roomId);
+
+    chatRooms.remove(currentChat);
+    currentChat = null;
+
+    reloadChatListUI(true);
+
+    log.info("Chat {} was deleted", roomId);
+  }
+
 
   private void handleInitRoomMessage(ChatProto.ChatMessage msg) {
     String fromUser = msg.getFromUserName();
@@ -525,7 +575,7 @@ public class MainChatController {
     File selectedFile = fileChooser.showOpenDialog(window);
     if (selectedFile != null) {
 
-      log.info("Вы выбрали: {}", selectedFile.getName());
+      log.info("Your chose: {}", selectedFile.getName());
 
       ChatRoom room = currentChat;
 
@@ -582,6 +632,91 @@ public class MainChatController {
     });
   }
 
+  @FXML
+  private void onLeaveChatClick() {
+    if (currentChat == null) return;
+
+    String owner = currentChat.getOwner();
+    String otherUser = currentChat.getOtherUser();
+    String roomId = currentChat.getRoomId();
+
+    String token = RoomTokenEncoder.encode(
+            roomId,
+            currentChat.getCipher(),
+            currentChat.getCipherMode(),
+            currentChat.getPaddingMode(),
+            currentChat.getIv()
+    );
+
+    if (currentUserName.equals(owner)) {
+      List<String> choices = List.of("Delete chat", "Remove other", "Leave chat");
+      ChoiceDialog<String> dialog = new ChoiceDialog<>(choices.getFirst(), choices);
+      dialog.setTitle("Exit chat");
+      dialog.setHeaderText("You are the chat owner. Select an action:");
+
+      Optional<String> result = dialog.showAndWait();
+      result.ifPresent(choice -> {
+        switch (choice) {
+          case "Delete chat" -> {
+            DaoManager.getMessageDao().deleteByRoomId(roomId);
+            DaoManager.getChatRoomDao().delete(roomId);
+
+            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.DELETE_CHAT);
+            reloadChatListUI(true);
+          }
+          case "Remove other" -> {
+            ChatRoom updatedRoom = DaoManager.getChatRoomDao().findByRoomId(roomId)
+                    .orElseThrow(() -> new RuntimeException("Chat room not found"));
+
+            updatedRoom.setOtherUser(null);
+            DaoManager.getChatRoomDao().update(updatedRoom);
+            currentChat = updatedRoom;
+
+            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.REMOVE_USER);
+            reloadChatListUI(false);
+          }
+          case "Leave chat" -> {
+            DaoManager.getMessageDao().deleteByRoomId(roomId);
+            DaoManager.getChatRoomDao().delete(roomId);
+
+            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.OWNER_LEFT);
+            reloadChatListUI(true);
+          }
+        }
+      });
+    } else {
+      Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+      confirm.setTitle("Exit chat");
+      confirm.setHeaderText("Are you sure you want to leave the chat?");
+      confirm.setContentText("All messages will be deleted");
+
+      Optional<ButtonType> buttonType = confirm.showAndWait();
+      if (buttonType.isPresent() && buttonType.get() == ButtonType.OK) {
+        DaoManager.getMessageDao().deleteByRoomId(roomId);
+        DaoManager.getChatRoomDao().delete(roomId);
+
+        grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.SELF_LEFT);
+
+        reloadChatListUI(true);
+      }
+    }
+  }
 
 
+  private void reloadChatListUI(boolean deleteMessages) {
+    chatRooms = DaoManager.getChatRoomDao().findAll();
+    updateChatListUI();
+    currentChat = null;
+    if (deleteMessages) messagesContainer.getChildren().clear();
+    chatTitleLabel.setText("Select chat");
+    cipherLabel.setText("Cipher:");
+    modeLabel.setText("Mode:");
+    paddingLabel.setText("Padding:");
+    ivLabel.setText("IV");
+    chatDetailsPane.setDisable(true);
+  }
+
+  @FXML
+  public void onInviteUserClick(ActionEvent actionEvent) {
+  }
 }

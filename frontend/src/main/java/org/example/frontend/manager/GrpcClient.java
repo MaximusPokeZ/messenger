@@ -92,6 +92,20 @@ public class GrpcClient {
     return response.getDelivered();
   }
 
+  public boolean sendControlMessage(String from, String to, String token, ChatProto.MessageType type) {
+    ChatProto.InitRoomRequest request = ChatProto.InitRoomRequest.newBuilder()
+            .setFromUserName(from)
+            .setToUserName(to)
+            .setToken(token)
+            .setPublicComponent("")
+            .setType(type)
+            .build();
+
+    ChatProto.InitRoomResponse response = blockingStub.initRoom(request);
+    return response.getIsDelivered();
+  }
+
+
   public CompletableFuture<Boolean> sendFile(File file, String fromUser, String toUser) {
     int chunkSize = 1024 * 512; // 512 KB
     byte[] buffer = new byte[chunkSize];
