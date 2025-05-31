@@ -1,10 +1,7 @@
 package org.example.frontend.controller;
 
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,6 +9,8 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.httpToSpring.ChatApiClient;
@@ -25,15 +24,19 @@ import org.example.frontend.utils.DiffieHellman;
 import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
-import org.example.shared.ChatServiceGrpc;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -74,6 +77,8 @@ public class MainChatController {
   @FXML
   private Button sendButton;
   @FXML
+  private Button sendFileButton;
+  @FXML
   public VBox searchResultsPanel;
   @FXML
   public ListView<String> searchResultsListView;
@@ -83,6 +88,8 @@ public class MainChatController {
   private ChatRoom currentChat;
 
   private List<ChatRoom> chatRooms = new ArrayList<>();
+
+  private final Map<String, OutputStream> fileStreams = new HashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
 
@@ -123,6 +130,7 @@ public class MainChatController {
                       switch(msg.getType()) {
                         case ChatProto.MessageType.TEXT -> handleTextMessage(msg);
                         case ChatProto.MessageType.INIT_ROOM -> handleInitRoomMessage(msg);
+                        case ChatProto.MessageType.FILE -> handleFileMessage(msg);
                         default -> throw new UnsupportedOperationException("Unsupported chat type: " + msg.getType());
                       }
             }
@@ -181,6 +189,32 @@ public class MainChatController {
 
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       log.info("Shared key get for room {} ", roomId);
+    }
+  }
+
+  private void handleFileMessage(ChatProto.ChatMessage msg) {
+    try {
+      String name = msg.getFileName();
+      Path dir = Paths.get("downloads");
+      Files.createDirectories(dir);
+      Path out = dir.resolve(name);
+      OutputStream os = fileStreams.computeIfAbsent(name,
+              fn -> {
+                try {
+                  return Files.newOutputStream(out, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              }
+      );
+      os.write(msg.getChunk().toByteArray());
+      if (msg.getIsLast()) {
+        os.close();
+        fileStreams.remove(name);
+        log.info("[Файл готов] " + name);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 
@@ -341,6 +375,7 @@ public class MainChatController {
     this.currentChat = room;
 
     sendButton.setDisable(false);
+    sendFileButton.setDisable(false);
     messageInputField.setDisable(false);
     chatDetailsPane.setDisable(false);
 
@@ -450,6 +485,42 @@ public class MainChatController {
   }
 
 
+
+  @FXML
+  private void chooseFile() {
+    Window window = messageInputField.getScene().getWindow();
+
+    FileChooser fileChooser = new FileChooser();
+    fileChooser.setTitle("Выберите файл для отправки");
+
+    File selectedFile = fileChooser.showOpenDialog(window);
+    if (selectedFile != null) {
+
+      log.info("Вы выбрали: {}", selectedFile.getName());
+
+      ChatRoom room = currentChat;
+
+      boolean delivered = false;
+
+      try {
+        delivered = grpcClient.sendFile(selectedFile, currentUserName, room.getOtherUser())
+                .orTimeout(5, TimeUnit.SECONDS)
+                .get();
+      } catch (Exception e) {
+        log.info(e.getMessage());
+      }
+
+
+      log.info("is delivered???? : {}", delivered);
+      if(delivered) {
+        //TODO отображать, записывать в бд, что мы файл отправили
+      }
+    } else {
+      log.info("Выбор файла отменён.");
+    }
+  }
+
+
   @FXML
   private void onCloseSearchClick() {
     searchResultsPanel.setVisible(false);
@@ -481,4 +552,7 @@ public class MainChatController {
       openChat(currentChat);
     });
   }
+
+
+
 }

@@ -112,7 +112,7 @@
                     </padding>
                     <TextField fx:id="messageInputField" disable="true" onAction="#onSendMessage" promptText="Enter message..." HBox.hgrow="ALWAYS" />
                     <Button fx:id="sendButton" disable="true" onAction="#onSendMessage" text="Send" />
-               <Button disable="true" text="File" />
+               <Button disable="true" fx:id="sendFileButton" text="File" onAction="#chooseFile" />
                 </HBox>
             </VBox>
 

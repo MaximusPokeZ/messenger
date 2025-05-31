@@ -84,6 +84,7 @@ message FileChunk {
 
 message SendMessageResponse {
   bool delivered = 1;  // true, если получатель онлайн
+  bool fully_delivered_file = 2;
 }
 
 message ChatMessage {
