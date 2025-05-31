@@ -245,10 +245,27 @@ public class MainChatController {
 
     if (changed) {
       log.info("Room settings changed for room '{}'. Updating...", roomId);
+      log.info("Cipher: {}", decodedToken.cipher());
+      log.info("Cipher mode: {}", decodedToken.cipherMode());
+      log.info("Padding mode: {}", decodedToken.paddingMode());
+      log.info("IV: {}", decodedToken.IV());
+
+      log.info("Cipher in room: {}", room.getCipher());
+      log.info("Cipher mode in room: {}", room.getCipherMode());
+      log.info("Padding mode in room: {}", room.getPaddingMode());
+      log.info("IV in room: {}", room.getIv());
+
+
       room.setCipher(decodedToken.cipher());
       room.setCipherMode(decodedToken.cipherMode());
       room.setPaddingMode(decodedToken.paddingMode());
       room.setIv(decodedToken.IV());
+
+      log.info("Cipher in room after: {}", room.getCipher());
+      log.info("Cipher mode in room after: {}", room.getCipherMode());
+      log.info("Padding mode in room after: {}", room.getPaddingMode());
+      log.info("IV in room after: {}", room.getIv());
+
 
       DaoManager.getChatRoomDao().update(room);
 
@@ -265,6 +282,7 @@ public class MainChatController {
         modeLabel.setText("Mode: " + room.getCipherMode());
         paddingLabel.setText("Padding: " + room.getPaddingMode());
         ivLabel.setText("IV: " + room.getIv());
+        log.info("Changed room settings for {}", roomId);
       }
     }
 
@@ -335,10 +353,10 @@ public class MainChatController {
 
     String guid = UUID.randomUUID().toString();
     result.ifPresent(settings -> {
-      log.info("Cipher: {}", settings.getCipher());
-      log.info("Cipher mode: {}", settings.getCipherMode());
-      log.info("Padding mode: {}", settings.getPaddingMode());
-      log.info("IV: {}", settings.getIv());
+      log.info("Cipher after send: {}", settings.getCipher());
+      log.info("Cipher mode after send: {}", settings.getCipherMode());
+      log.info("Padding mode after send: {}", settings.getPaddingMode());
+      log.info("IV after send: {}", settings.getIv());
 
       String token = RoomTokenEncoder.encode(
               guid,
@@ -373,24 +391,31 @@ public class MainChatController {
   }
 
   private void openChat(ChatRoom room) {
-    this.currentChat = room;
+    Optional<ChatRoom> updatedRoomOpt = DaoManager.getChatRoomDao().findByRoomId(room.getRoomId());
+    if (updatedRoomOpt.isEmpty()) {
+      log.warn("Tried to open nonexistent room: {}", room.getRoomId());
+      return;
+    }
+
+    ChatRoom updatedRoom = updatedRoomOpt.get();
+    this.currentChat = updatedRoom;
 
     sendButton.setDisable(false);
     sendFileButton.setDisable(false);
     messageInputField.setDisable(false);
     chatDetailsPane.setDisable(false);
 
-    cipherLabel.setText("Cipher: " + room.getCipher());
-    modeLabel.setText("Mode: " + room.getCipherMode());
-    paddingLabel.setText("Padding: " + room.getPaddingMode());
-    ivLabel.setText("IV: " + room.getIv());
+    cipherLabel.setText("Cipher: " + updatedRoom.getCipher());
+    modeLabel.setText("Mode: " + updatedRoom.getCipherMode());
+    paddingLabel.setText("Padding: " + updatedRoom.getPaddingMode());
+    ivLabel.setText("IV: " + updatedRoom.getIv());
 
-    chatTitleLabel.setText(room.getOtherUser());
+    chatTitleLabel.setText(updatedRoom.getOtherUser());
     chatStatusLabel.setText("Online"); // пока захардкожено, можно расширить
 
     messagesContainer.getChildren().clear();
 
-    List<Message> messages = DaoManager.getMessageDao().findByRoomId(room.getRoomId());
+    List<Message> messages = DaoManager.getMessageDao().findByRoomId(updatedRoom.getRoomId());
     for (Message msg : messages) {
       messagesContainer.getChildren().add(createMessageBubble(msg));
     }
@@ -461,6 +486,11 @@ public class MainChatController {
             room.getIv()
     );
 
+    log.info("Cipher before send: {}", room.getCipher());
+    log.info("Cipher mode before send: {}", room.getCipherMode());
+    log.info("Padding mode before send: {}", room.getPaddingMode());
+    log.info("IV before send: {}", room.getIv());
+
     long timestamp = System.currentTimeMillis();
 
     boolean delivered = grpcClient.sendMessage(
@@ -484,8 +514,6 @@ public class MainChatController {
       messagesScrollPane.setVvalue(1.0);
     }
   }
-
-
 
   @FXML
   private void chooseFile() {
