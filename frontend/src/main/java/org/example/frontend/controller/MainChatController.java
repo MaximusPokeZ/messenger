@@ -127,7 +127,7 @@ public class MainChatController {
         if (empty || room == null) {
           setText(null);
         } else {
-          setText(room.getOtherUser() + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
+          setText(Objects.equals(currentUserName, room.getOtherUser()) ? room.getOwner() : room.getOtherUser() + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
         }
       }
     });
@@ -159,8 +159,7 @@ public class MainChatController {
     DaoManager.getMessageDao().deleteByRoomId(roomId);
     DaoManager.getChatRoomDao().delete(roomId);
 
-    chatRooms.remove(currentChat);
-    currentChat = null;
+    leaveChatButton.setDisable(true);
 
     reloadChatListUI(true);
 
@@ -174,11 +173,14 @@ public class MainChatController {
             .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
     room.setOwner(currentUserName);
+    room.setOtherUser(null);
     DaoManager.getChatRoomDao().update(room);
 
     reloadChatListUI(false);
 
     log.info("Owner left chat {}. New owner is {}", roomId, currentUserName);
+
+    openChat(room);
   }
 
   private void handleDeleteChat(ChatProto.ChatMessage msg) {
@@ -187,27 +189,26 @@ public class MainChatController {
     DaoManager.getMessageDao().deleteByRoomId(roomId);
     DaoManager.getChatRoomDao().delete(roomId);
 
-    chatRooms.remove(currentChat);
-    currentChat = null;
-
+    leaveChatButton.setDisable(true);
     reloadChatListUI(true);
 
     log.info("Chat {} was deleted", roomId);
   }
-
 
   private void handleInitRoomMessage(ChatProto.ChatMessage msg) {
     String fromUser = msg.getFromUserName();
     String token = msg.getToken();
     String roomId = RoomTokenEncoder.decode(token).guid();
 
+    log.info("Create room by fromUser: {}", fromUser);
+
     Optional<ChatRoom> existing = DaoManager.getChatRoomDao().findByRoomId(roomId);
 
     if (existing.isEmpty()) {
       ChatRoom room = ChatRoom.builder()
               .roomId(roomId)
-              .owner(currentUserName)
-              .otherUser(fromUser)
+              .owner(fromUser)
+              .otherUser(currentUserName)
               .cipher(RoomTokenEncoder.decode(token).cipher())
               .cipherMode(RoomTokenEncoder.decode(token).cipherMode())
               .paddingMode(RoomTokenEncoder.decode(token).paddingMode())
@@ -267,7 +268,6 @@ public class MainChatController {
       e.printStackTrace();
     }
   }
-
 
   private void handleTextMessage(ChatProto.ChatMessage msg) {
     RoomTokenEncoder.DecodedRoomToken decodedToken;
@@ -351,8 +351,6 @@ public class MainChatController {
       messagesScrollPane.setVvalue(1.0);
     }
   }
-
-
 
   @FXML
   private void onLogoutClick() {
@@ -454,13 +452,14 @@ public class MainChatController {
     sendFileButton.setDisable(false);
     messageInputField.setDisable(false);
     chatDetailsPane.setDisable(false);
+    leaveChatButton.setDisable(false);
 
     cipherLabel.setText("Cipher: " + updatedRoom.getCipher());
     modeLabel.setText("Mode: " + updatedRoom.getCipherMode());
     paddingLabel.setText("Padding: " + updatedRoom.getPaddingMode());
     ivLabel.setText("IV: " + updatedRoom.getIv());
 
-    chatTitleLabel.setText(updatedRoom.getOtherUser());
+    chatTitleLabel.setText(Objects.equals(currentUserName, updatedRoom.getOtherUser()) ? updatedRoom.getOwner() : updatedRoom.getOtherUser());
     chatStatusLabel.setText("Online"); // пока захардкожено, можно расширить
 
     messagesContainer.getChildren().clear();
@@ -543,9 +542,12 @@ public class MainChatController {
 
     long timestamp = System.currentTimeMillis();
 
+    log.info("Current User: {}", currentUserName);
+    log.info("Other User: {}", room.getOtherUser());
+    log.info("Current room User: {}", room.getOwner());
     boolean delivered = grpcClient.sendMessage(
             currentUserName,
-            room.getOtherUser(),
+            Objects.equals(room.getOtherUser(), currentUserName) ? room.getOwner() : room.getOtherUser(),
             text,
             token
     );
@@ -648,7 +650,11 @@ public class MainChatController {
             currentChat.getIv()
     );
 
-    if (currentUserName.equals(owner)) {
+    log.info("Current Username: {}", currentUserName);
+    log.info("Owner: {}", currentChat.getOwner());
+    log.info("Other user: {}", currentChat.getOtherUser());
+
+    if (currentUserName.equals(owner) && currentChat.getOtherUser() != null) {
       List<String> choices = List.of("Delete chat", "Remove other", "Leave chat");
       ChoiceDialog<String> dialog = new ChoiceDialog<>(choices.getFirst(), choices);
       dialog.setTitle("Exit chat");
@@ -674,6 +680,7 @@ public class MainChatController {
 
             grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.REMOVE_USER);
             reloadChatListUI(false);
+            openChat(currentChat);
           }
           case "Leave chat" -> {
             DaoManager.getMessageDao().deleteByRoomId(roomId);
@@ -695,8 +702,14 @@ public class MainChatController {
         DaoManager.getMessageDao().deleteByRoomId(roomId);
         DaoManager.getChatRoomDao().delete(roomId);
 
-        grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.SELF_LEFT);
+        if (otherUser != null) grpcClient.sendControlMessage(currentUserName, Objects.equals(otherUser, currentUserName) ? owner : otherUser, token, ChatProto.MessageType.SELF_LEFT);
 
+        messageInputField.setDisable(true);
+        sendButton.setDisable(true);
+        sendFileButton.setDisable(true);
+        leaveChatButton.setDisable(true);
+
+        log.info("CurrentRoomChat {}", currentChat.getRoomId());
         reloadChatListUI(true);
       }
     }
@@ -706,8 +719,16 @@ public class MainChatController {
   private void reloadChatListUI(boolean deleteMessages) {
     chatRooms = DaoManager.getChatRoomDao().findAll();
     updateChatListUI();
-    currentChat = null;
-    if (deleteMessages) messagesContainer.getChildren().clear();
+    if (deleteMessages) {
+      DaoManager.getChatRoomDao().delete(currentChat.getRoomId());
+      messagesContainer.getChildren().clear();
+      chatRooms.remove(currentChat);
+      currentChat = null;
+      leaveChatButton.setDisable(true);
+      messageInputField.setDisable(true);
+      sendButton.setDisable(true);
+      sendFileButton.setDisable(true);
+    }
     chatTitleLabel.setText("Select chat");
     cipherLabel.setText("Cipher:");
     modeLabel.setText("Mode:");
