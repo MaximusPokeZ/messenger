@@ -4,14 +4,21 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import javafx.util.Pair;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.example.frontend.cipher_ykwais.constants.CipherMode;
+import org.example.frontend.cipher_ykwais.constants.PaddingMode;
+import org.example.frontend.cipher_ykwais.context.Context;
+import org.example.frontend.cipher_ykwais.rc6.RC6;
+import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -97,7 +104,9 @@ public class GrpcClient {
     byte[] buffer = new byte[chunkSize];
     int index = 0;
     CompletableFuture<Boolean> deliveryFuture = new CompletableFuture<>();
+    byte[] previous = null;
 
+    Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
 
     StreamObserver<ChatProto.SendMessageResponse> respObs = new StreamObserver<>() {
       @Override public void onNext(ChatProto.SendMessageResponse r) {
@@ -121,25 +130,47 @@ public class GrpcClient {
       log.info("amount bytes: {}", amountBytes);
       long amountChunks = (long) Math.ceil((double)amountBytes / (double)chunkSize) + 1; //так как есть 1 пустой еще
       log.info("amount chunks: {}", amountChunks);
+      byte[] lastBlock = null;
+
       while ((read = fis.read(buffer)) != -1) {
-        index++;
-        ChatProto.FileChunk chunk = ChatProto.FileChunk.newBuilder()
-                .setFromUserName(fromUser)
-                .setToUserName(toUser)
-                .setFileName(file.getName())
-                .setData(ByteString.copyFrom(buffer, 0, read))
-                .setChunkNumber(index)
-                .setIsLast(false)
-                .setAmountChunks(amountChunks)
-                .build();
-        reqObs.onNext(chunk);
+
+        if (lastBlock != null) {
+          index++;
+          Pair<byte[], byte[]> encryptedPart = context.encryptDecryptInner(lastBlock, previous,true);
+          previous = encryptedPart.getValue();
+
+          ChatProto.FileChunk chunk = ChatProto.FileChunk.newBuilder()
+                  .setFromUserName(fromUser)
+                  .setToUserName(toUser)
+                  .setFileName(file.getName())
+                  .setData(ByteString.copyFrom(encryptedPart.getKey()))
+                  .setChunkNumber(index)
+                  .setIsLast(false)
+                  .setAmountChunks(amountChunks)
+                  .build();
+          reqObs.onNext(chunk);
+        }
+
+        lastBlock = Arrays.copyOf(buffer, read);
+      }
+
+      Pair<byte[], byte[]> encryptedPart;
+
+      if (lastBlock != null) {
+        byte[] paddedBlock = context.addPadding(lastBlock);
+        encryptedPart = context.encryptDecryptInner(paddedBlock, previous,true);
+
+      } else {
+        byte[] emptyPadded = context.addPadding(new byte[0]);
+        encryptedPart = context.encryptDecryptInner(emptyPadded, previous,true);
+
       }
 
       ChatProto.FileChunk last = ChatProto.FileChunk.newBuilder()
               .setFromUserName(fromUser)
               .setToUserName(toUser)
               .setFileName(file.getName())
-              .setData(ByteString.EMPTY)
+              .setData(ByteString.copyFrom(encryptedPart.getKey()))
               .setChunkNumber(index + 1)
               .setIsLast(true)
               .setAmountChunks(amountChunks)
@@ -149,10 +180,7 @@ public class GrpcClient {
     } catch (IOException e) {
       reqObs.onError(e);
     }
-
     return deliveryFuture;
-
-
   }
 
   public boolean sendInitRoomRequest(String fromUser, String toUser, String token, String publicComponent) {

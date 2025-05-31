@@ -11,7 +11,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
+import org.example.frontend.cipher_ykwais.constants.CipherMode;
+import org.example.frontend.cipher_ykwais.constants.PaddingMode;
+import org.example.frontend.cipher_ykwais.context.Context;
+import org.example.frontend.cipher_ykwais.rc6.RC6;
+import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.httpToSpring.ChatApiClient;
 import org.example.frontend.manager.*;
@@ -92,6 +98,9 @@ public class MainChatController {
   private final Map<String, OutputStream> fileStreams = new HashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
+
+  private Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+  private byte[] previous = null; //для некоторых режимов шифрования
 
   public void initialize() {
     DBManager.initInstance(currentUserName);
@@ -207,12 +216,22 @@ public class MainChatController {
                 }
               }
       );
-      os.write(msg.getChunk().toByteArray());
+
       if (msg.getIsLast()) {
+        Pair<byte[], byte[]> afterDecrypt = context.encryptDecryptInner(msg.getChunk().toByteArray(), previous, false);
+        previous = null;
+
+        os.write(context.removePadding(afterDecrypt.getKey()));
         os.close();
         fileStreams.remove(name);
         log.info("[Файл готов] " + name);
+        return;
       }
+
+      Pair<byte[], byte[]> afterDecrypt = context.encryptDecryptInner(msg.getChunk().toByteArray(), previous, false);
+      previous = afterDecrypt.getValue();
+      os.write(afterDecrypt.getKey());
+
     } catch (IOException e) {
       e.printStackTrace();
     }

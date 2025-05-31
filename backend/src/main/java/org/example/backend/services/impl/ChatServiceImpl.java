@@ -202,8 +202,9 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
 
 
                     if (chunk.getIsLast()) {
-                        if (receivedChunks == totalChunks) {
+                        if (receivedChunks + 1 == totalChunks) {
                             log.info("Сюда попадаем????");
+
                             sendSuccessResponse(responseObserver, true);
                         } else {
                             sendErrorResponse(responseObserver, "Missing chunks");
