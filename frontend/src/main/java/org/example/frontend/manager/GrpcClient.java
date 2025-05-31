@@ -50,8 +50,8 @@ public class GrpcClient {
   }
 
   public void shutdown() {
-    if (!channel.isShutdown()) {
-      channel.shutdown();
+    if (channel != null && !channel.isShutdown()) {
+      channel.shutdownNow();
     }
   }
 
@@ -166,6 +166,13 @@ public class GrpcClient {
 
     ChatProto.InitRoomResponse response = blockingStub.initRoom(request);
     return response.getIsDelivered();
+  }
+
+  public static void resetInstance() {
+    if (instance != null) {
+      instance.shutdown();
+    }
+    instance = null;
   }
 
 

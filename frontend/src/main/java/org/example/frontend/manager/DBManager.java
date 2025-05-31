@@ -31,6 +31,13 @@ public class DBManager {
     }
   }
 
+  public static void resetInstance() {
+    if (instance != null) {
+      instance.close();
+    }
+    instance = null;
+  }
+
   public void init() {
     try {
       String home = System.getProperty("user.home");//user.downloads
@@ -94,7 +101,7 @@ public class DBManager {
     return instance;
   }
 
-  public void close() {
+  private void close() {
     if (connection != null) {
       try {
         connection.close();

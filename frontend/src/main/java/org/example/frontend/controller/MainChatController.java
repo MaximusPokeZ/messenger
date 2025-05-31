@@ -211,7 +211,7 @@ public class MainChatController {
       if (msg.getIsLast()) {
         os.close();
         fileStreams.remove(name);
-        log.info("[Файл готов] " + name);
+        log.info("File done! {}", name);
       }
     } catch (IOException e) {
       e.printStackTrace();
@@ -291,7 +291,8 @@ public class MainChatController {
     JwtStorage.setUsername(null);
     JwtStorage.setToken(null);
     try {
-      grpcClient.shutdown();
+      GrpcClient.resetInstance();
+      DBManager.resetInstance();
       SceneManager.switchToLoginScene();
     } catch (IOException e) {
       throw new RuntimeException("Failed to log out: " + e);

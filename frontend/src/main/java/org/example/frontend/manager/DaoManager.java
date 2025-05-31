@@ -15,5 +15,6 @@ public class DaoManager {
     messageDao = new MessageDaoImpl();
   }
 
+
   private DaoManager() {}
 }
