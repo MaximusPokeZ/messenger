@@ -41,6 +41,8 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -95,7 +97,18 @@ public class MainChatController {
 
   private List<ChatRoom> chatRooms = new ArrayList<>();
 
-  private final Map<String, OutputStream> fileStreams = new HashMap<>();
+  private static class FileTransferState {
+    OutputStream outputStream;
+    byte[] previous;
+
+    FileTransferState(OutputStream os) {
+      this.outputStream = os;
+      this.previous = null;
+    }
+  }
+
+  //private final Map<String, OutputStream> fileStreams = new HashMap<>();
+  private final ConcurrentMap<String, FileTransferState> fileTransfers = new ConcurrentHashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
 
@@ -201,42 +214,51 @@ public class MainChatController {
     }
   }
 
+
+
   private void handleFileMessage(ChatProto.ChatMessage msg) {
     try {
-      String name = msg.getFileName();
+      String fileName = msg.getFileName();
       Path dir = Paths.get("downloads");
       Files.createDirectories(dir);
-      Path out = dir.resolve(name);
-      OutputStream os = fileStreams.computeIfAbsent(name,
-              fn -> {
-                try {
-                  return Files.newOutputStream(out, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
-              }
+      Path out = dir.resolve(fileName);
+
+      FileTransferState state = fileTransfers.computeIfAbsent(fileName, fn -> {
+        try {
+          OutputStream os = Files.newOutputStream(out,
+                  StandardOpenOption.CREATE,
+                  StandardOpenOption.APPEND);
+          return new FileTransferState(os);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      });
+
+      byte[] encryptedChunk = msg.getChunk().toByteArray();
+      Pair<byte[], byte[]> decrypted = context.encryptDecryptInner(
+              encryptedChunk,
+              state.previous,
+              false
       );
 
       if (msg.getIsLast()) {
-        Pair<byte[], byte[]> afterDecrypt = context.encryptDecryptInner(msg.getChunk().toByteArray(), previous, false);
-        previous = null;
-
-        os.write(context.removePadding(afterDecrypt.getKey()));
-        os.close();
-        fileStreams.remove(name);
-        log.info("[Файл готов] " + name);
-        return;
+        byte[] unpadded = context.removePadding(decrypted.getKey());
+        state.outputStream.write(unpadded);
+        state.outputStream.close();
+        fileTransfers.remove(fileName);
+        log.info("[Файл готов] {}", fileName); //TODO тут можно уже отображать в чат
+      } else {
+        state.outputStream.write(decrypted.getKey());
+        state.previous = decrypted.getValue();
       }
-
-      Pair<byte[], byte[]> afterDecrypt = context.encryptDecryptInner(msg.getChunk().toByteArray(), previous, false);
-      previous = afterDecrypt.getValue();
-      os.write(afterDecrypt.getKey());
-
-    } catch (IOException e) {
-      e.printStackTrace();
+    } catch (Exception e) {
+      log.error("Ошибка обработки файла {}", msg.getFileName(), e);
+      FileTransferState failedState = fileTransfers.remove(msg.getFileName());
+      if (failedState != null) {
+        try { failedState.outputStream.close(); } catch (IOException ignored) {}
+      }
     }
   }
-
 
   private void handleTextMessage(ChatProto.ChatMessage msg) {
     RoomTokenEncoder.DecodedRoomToken decodedToken;

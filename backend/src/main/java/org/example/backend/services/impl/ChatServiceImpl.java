@@ -108,56 +108,6 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
         return clients.keySet().stream().map(UsernameResponse::new).toList();
     }
 
-//    @Override
-//    public StreamObserver<ChatProto.FileChunk> sendFile(StreamObserver<ChatProto.SendMessageResponse> rep) {
-//        return new StreamObserver<>() {
-//            String to;
-//            String from;
-//            String fname;
-//            long amountChunks;
-//
-//            @Override
-//            public void onNext(ChatProto.FileChunk chunk) {
-//
-//                if (from == null) {
-//                    from  = chunk.getFromUserName();
-//                    to    = chunk.getToUserName();
-//                    fname = chunk.getFileName();
-//                    amountChunks = chunk.getAmountChunks();
-//                }
-//
-//                ChatProto.ChatMessage msg = ChatProto.ChatMessage.newBuilder()
-//                        .setFromUserName(from)
-//                        .setDateTime(System.currentTimeMillis())
-//                        .setType(ChatProto.MessageType.FILE)
-//                        .setFileName(fname)
-//                        .setChunk(chunk.getData())
-//                        .setChunkNumber(chunk.getChunkNumber())
-//                        .setIsLast(chunk.getIsLast())
-//                        .setAmountChunks(amountChunks)
-//                        .build();
-//
-//                var target = clients.get(to);
-//                if (target != null) {
-//                    target.onNext(msg);
-//                }
-//                if(chunk.getIsLast()) {
-//                    rep.onNext(ChatProto.SendMessageResponse.newBuilder().setFullyDeliveredFile(true).build());
-//                }
-//            }
-//
-//            @Override
-//            public void onError(Throwable t) {
-//                t.printStackTrace();
-//            }
-//
-//            @Override
-//            public void onCompleted() {
-//                rep.onNext(ChatProto.SendMessageResponse.newBuilder().setDelivered(true).build());
-//                rep.onCompleted();
-//            }
-//        };
-//    }
 
     @Override
     public StreamObserver<ChatProto.FileChunk> sendFile(StreamObserver<ChatProto.SendMessageResponse> responseObserver) {
