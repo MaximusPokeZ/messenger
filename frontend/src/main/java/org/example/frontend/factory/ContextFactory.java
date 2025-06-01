@@ -49,7 +49,8 @@ public class ContextFactory {
         DiffieHellman dh = DiffieHellmanManager.get(room.getRoomId());
 
         byte[] fullKey = dh.getSharedSecret().toByteArray();
-        int requiredLength = switch (room.getKeyBitLength()) {//сюда приходит null блять
+        log.info("FULL KEY Length: {}", fullKey.length);
+        int requiredLength = switch (room.getKeyBitLength()) {
             case "128" -> 16;
             case "192" -> 24;
             case "256" -> 32;

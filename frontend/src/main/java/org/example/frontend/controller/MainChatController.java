@@ -229,9 +229,8 @@ public class MainChatController {
       chatRooms.add(room);
       updateChatListUI();
 
-      String g = "5";
-      String p = "23";
-      DiffieHellman dh = new DiffieHellman(g, p);
+
+      DiffieHellman dh = new DiffieHellman();
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       DiffieHellmanManager.put(roomId, dh);
 
@@ -620,10 +619,8 @@ public class MainChatController {
             currentChat.getKeyBitLength()
     );
 
-    String g = "5";
-    String p = "23";
 
-    DiffieHellman dh = new DiffieHellman(g, p);
+    DiffieHellman dh = new DiffieHellman();
     String publicComponent = dh.getPublicComponent().toString();
 
     DiffieHellmanManager.put(roomId, dh);
