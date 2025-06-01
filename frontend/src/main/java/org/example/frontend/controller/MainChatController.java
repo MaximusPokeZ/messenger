@@ -2,12 +2,14 @@ package org.example.frontend.controller;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -111,13 +113,9 @@ public class MainChatController {
     }
   }
 
-  //private final Map<String, OutputStream> fileStreams = new HashMap<>();
   private final ConcurrentMap<String, FileTransferState> fileTransfers = new ConcurrentHashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
-
-
-
 
   public void initialize() {
     DBManager.initInstance(currentUserName);
@@ -126,7 +124,6 @@ public class MainChatController {
     userLabel.setText(currentUserName);
     chatDetailsPane.setDisable(true);
     leaveChatButton.setDisable(true);
-    inviteUserButton.setDisable(true);
     inviteUserButton.setVisible(false);
 
     chatRooms = DaoManager.getChatRoomDao().findAll();
@@ -148,7 +145,7 @@ public class MainChatController {
         if (empty || room == null) {
           setText(null);
         } else {
-          setText(Objects.equals(currentUserName, room.getOtherUser()) ? room.getOwner() : room.getOtherUser() + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
+          setText(room.getInterlocutor(currentUserName) + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
         }
       }
     });
@@ -161,8 +158,7 @@ public class MainChatController {
                 case INIT_ROOM -> handleInitRoomMessage(msg);
                 case FILE -> handleFileMessage(msg);
                 case DELETE_CHAT, REMOVE_USER -> handleDeleteChat(msg);
-                case OWNER_LEFT -> handleOwnerLeft(msg);
-                case SELF_LEFT -> handleSelfLeft(msg);
+                case OWNER_LEFT, SELF_LEFT -> handleOwnerLeft(msg);
                 default -> throw new UnsupportedOperationException("Unsupported chat type: " + msg.getType());
               }
             }),
@@ -172,19 +168,6 @@ public class MainChatController {
 
 
     searchResultsPanel.setVisible(false);
-  }
-
-  private void handleSelfLeft(ChatProto.ChatMessage msg) {
-    String roomId = RoomTokenEncoder.decode(msg.getToken()).guid();
-
-    DaoManager.getMessageDao().deleteByRoomId(roomId);
-    DaoManager.getChatRoomDao().delete(roomId);
-
-    leaveChatButton.setDisable(true);
-
-    reloadChatListUI(true);
-
-    log.info("You have left the chat {}", roomId);
   }
 
   private void handleOwnerLeft(ChatProto.ChatMessage msg) {
@@ -197,9 +180,18 @@ public class MainChatController {
     room.setOtherUser(null);
     DaoManager.getChatRoomDao().update(room);
 
+    for (int i = 0; i < chatRooms.size(); i++) {
+      if (chatRooms.get(i).getRoomId().equals(roomId)) {
+        chatRooms.set(i, room);
+        break;
+      }
+    }
+
     reloadChatListUI(false);
 
     log.info("Owner left chat {}. New owner is {}", roomId, currentUserName);
+
+    inviteUserButton.setVisible(true);
 
     openChat(room);
   }
@@ -383,7 +375,6 @@ public class MainChatController {
     byte[] encodedData = Base64.getDecoder().decode(msg.getText());
     Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
 
-
     Message message = Message.builder()
             .roomId(roomId)
             .sender(msg.getFromUserName())
@@ -420,13 +411,13 @@ public class MainChatController {
     List<String> allUsers = ChatApiClient.getOnlineUsers().stream()
             .map(User::getUsername)
             .filter(u -> !u.equals(currentUserName))
-            .collect(Collectors.toList());
+            .toList();
 
     List<String> filteredUsers = searchText.isEmpty()
             ? allUsers
             : allUsers.stream()
             .filter(u -> u.toLowerCase().contains(searchText))
-            .collect(Collectors.toList());
+            .toList();
 
     searchResultsListView.setItems(FXCollections.observableArrayList(filteredUsers));
     searchResultsPanel.setVisible(true);
@@ -454,14 +445,6 @@ public class MainChatController {
       log.info("Padding mode after send: {}", settings.getPaddingMode());
       log.info("IV after send: {}", settings.getIv());
 
-      String token = RoomTokenEncoder.encode(
-              guid,
-              settings.getCipher(),
-              settings.getCipherMode(),
-              settings.getPaddingMode(),
-              settings.getIv()
-      );
-
       ChatRoom chatRoom = ChatRoom.builder()
               .roomId(guid)
               .owner(currentUserName)
@@ -475,8 +458,9 @@ public class MainChatController {
       chatRooms.add(chatRoom);
       DaoManager.getChatRoomDao().insert(chatRoom);
 
+      this.currentChat = chatRoom;
       updateChatListUI();
-      sendInitRoomRequest(username, token, guid);
+      sendInitRoomRequest(username, guid);
 
       openChat(chatRoom);
     });
@@ -487,6 +471,7 @@ public class MainChatController {
   }
 
   private void openChat(ChatRoom room) {
+    if (room == null) return;
     Optional<ChatRoom> updatedRoomOpt = DaoManager.getChatRoomDao().findByRoomId(room.getRoomId());
     if (updatedRoomOpt.isEmpty()) {
       log.warn("Tried to open nonexistent room: {}", room.getRoomId());
@@ -507,7 +492,7 @@ public class MainChatController {
     paddingLabel.setText("Padding: " + updatedRoom.getPaddingMode());
     ivLabel.setText("IV: " + updatedRoom.getIv());
 
-    chatTitleLabel.setText(Objects.equals(currentUserName, updatedRoom.getOtherUser()) ? updatedRoom.getOwner() : updatedRoom.getOtherUser());
+    chatTitleLabel.setText(updatedRoom.getInterlocutor(currentUserName));
 
     messagesContainer.getChildren().clear();
 
@@ -544,7 +529,15 @@ public class MainChatController {
   }
 
 
-  private void sendInitRoomRequest(String toUser, String token, String roomId) {
+  private boolean sendInitRoomRequest(String toUser, String roomId) {
+    String token = RoomTokenEncoder.encode(
+            roomId,
+            currentChat.getCipher(),
+            currentChat.getCipherMode(),
+            currentChat.getPaddingMode(),
+            currentChat.getIv()
+    );
+
     String g = "5";
     String p = "23";
 
@@ -562,6 +555,8 @@ public class MainChatController {
     } else {
       log.warn("User {} rejected room creation", toUser);
     }
+
+    return accepted;
   }
 
 
@@ -607,7 +602,7 @@ public class MainChatController {
     log.info("Current room User: {}", room.getOwner());
     boolean delivered = grpcClient.sendMessage(
             currentUserName,
-            Objects.equals(room.getOtherUser(), currentUserName) ? room.getOwner() : room.getOtherUser(),
+            room.getInterlocutor(currentUserName),
             cipherText,
             token
     );
@@ -632,7 +627,7 @@ public class MainChatController {
     Window window = messageInputField.getScene().getWindow();
 
     FileChooser fileChooser = new FileChooser();
-    fileChooser.setTitle("Выберите файл для отправки");
+    fileChooser.setTitle("Select file to send");
 
     File selectedFile = fileChooser.showOpenDialog(window);
     if (selectedFile != null) {
@@ -687,9 +682,6 @@ public class MainChatController {
 
       DaoManager.getChatRoomDao().update(currentChat);
 
-      //TODO : послать запрос на изменение комнаты у другого юзера или просто послать сообщение новое
-      // в котором будет наш токен в котором уже будет обновленная информация
-
       openChat(currentChat);
     });
   }
@@ -739,6 +731,7 @@ public class MainChatController {
             currentChat = updatedRoom;
 
             grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.REMOVE_USER);
+            inviteUserButton.setVisible(true);
             reloadChatListUI(false);
             openChat(currentChat);
           }
@@ -762,7 +755,7 @@ public class MainChatController {
         DaoManager.getMessageDao().deleteByRoomId(roomId);
         DaoManager.getChatRoomDao().delete(roomId);
 
-        if (otherUser != null) grpcClient.sendControlMessage(currentUserName, Objects.equals(otherUser, currentUserName) ? owner : otherUser, token, ChatProto.MessageType.SELF_LEFT);
+        if (otherUser != null) grpcClient.sendControlMessage(currentUserName, currentChat.getInterlocutor(currentUserName), token, ChatProto.MessageType.SELF_LEFT);
 
         messageInputField.setDisable(true);
         sendButton.setDisable(true);
@@ -798,6 +791,157 @@ public class MainChatController {
   }
 
   @FXML
-  public void onInviteUserClick(ActionEvent actionEvent) {
+  private void onInviteUserClick() {
+    if (currentChat == null) return;
+
+    List<String> allUsers = ChatApiClient.getOnlineUsers().stream()
+            .map(User::getUsername)
+            .filter(u -> !u.equals(currentUserName))
+            .toList();
+
+    if (allUsers.isEmpty()) {
+      showAlert(Alert.AlertType.WARNING, "There are no users available to invite");
+      return;
+    }
+
+    showUserSelectionDialog(allUsers);
+  }
+
+  private void showUserSelectionDialog(List<String> allUsers) {
+    Dialog<String> dialog = new Dialog<>();
+    dialog.setTitle("Invite User");
+    dialog.setHeaderText("Select a user to invite to chat:");
+
+    VBox vbox = new VBox(10);
+    vbox.setPadding(new Insets(20));
+
+    TextField searchField = new TextField();
+    searchField.setPromptText("Type to search users...");
+
+    ListView<String> userListView = new ListView<>();
+    userListView.setPrefHeight(200);
+    userListView.setPrefWidth(300);
+
+    ObservableList<String> filteredUsers = FXCollections.observableArrayList(allUsers);
+    userListView.setItems(filteredUsers);
+
+    searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+      filteredUsers.clear();
+      if (newValue == null || newValue.trim().isEmpty()) {
+        filteredUsers.addAll(allUsers);
+      } else {
+        String searchText = newValue.toLowerCase().trim();
+        filteredUsers.addAll(
+                allUsers.stream()
+                        .filter(user -> user.toLowerCase().contains(searchText))
+                        .toList()
+        );
+      }
+
+      if (!filteredUsers.isEmpty()) {
+        userListView.getSelectionModel().selectFirst();
+      }
+    });
+
+    if (!filteredUsers.isEmpty()) {
+      userListView.getSelectionModel().selectFirst();
+    }
+
+    userListView.setOnMouseClicked(event -> {
+      if (event.getClickCount() == 2) {
+        String selectedUser = userListView.getSelectionModel().getSelectedItem();
+        if (selectedUser != null) {
+          dialog.setResult(selectedUser);
+          dialog.close();
+        }
+      }
+    });
+
+    searchField.setOnKeyPressed(event -> {
+      if (event.getCode() == KeyCode.ENTER) {
+        String selectedUser = userListView.getSelectionModel().getSelectedItem();
+        if (selectedUser != null) {
+          dialog.setResult(selectedUser);
+          dialog.close();
+        }
+      } else if (event.getCode() == KeyCode.DOWN && !filteredUsers.isEmpty()) {
+        userListView.requestFocus();
+        userListView.getSelectionModel().selectFirst();
+      }
+    });
+
+    userListView.setOnKeyPressed(event -> {
+      if (event.getCode() == KeyCode.ENTER) {
+        String selectedUser = userListView.getSelectionModel().getSelectedItem();
+        if (selectedUser != null) {
+          dialog.setResult(selectedUser);
+          dialog.close();
+        }
+      } else if (event.getCode() == KeyCode.UP &&
+              userListView.getSelectionModel().getSelectedIndex() == 0) {
+        searchField.requestFocus();
+      }
+    });
+
+    vbox.getChildren().addAll(
+            new Label("Search:"),
+            searchField,
+            new Label("Users:"),
+            userListView
+    );
+
+    dialog.getDialogPane().setContent(vbox);
+
+    ButtonType inviteButtonType = new ButtonType("Invite", ButtonBar.ButtonData.OK_DONE);
+    ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+    dialog.getDialogPane().getButtonTypes().addAll(inviteButtonType, cancelButtonType);
+
+    Platform.runLater(searchField::requestFocus);
+
+    dialog.setResultConverter(dialogButton -> {
+      if (dialogButton == inviteButtonType) {
+        return userListView.getSelectionModel().getSelectedItem();
+      }
+      return null;
+    });
+
+    Button inviteButton = (Button) dialog.getDialogPane().lookupButton(inviteButtonType);
+    inviteButton.disableProperty().bind(
+            userListView.getSelectionModel().selectedItemProperty().isNull()
+    );
+
+    Optional<String> result = dialog.showAndWait();
+    result.ifPresent(selectedUser -> {
+      currentChat.setOtherUser(selectedUser);
+      DaoManager.getChatRoomDao().update(currentChat);
+      if (sendInitRoomRequest(selectedUser, currentChat.getRoomId())) {
+        showAlert(Alert.AlertType.INFORMATION, "The user has been invited to the chat");
+
+        for (int i = 0; i < chatRooms.size(); i++) {
+          if (chatRooms.get(i).getRoomId().equals(currentChat.getRoomId())) {
+            chatRooms.set(i, currentChat);
+            break;
+          }
+        }
+      } else {
+        DaoManager.getMessageDao().deleteByRoomId(currentChat.getRoomId());
+        DaoManager.getChatRoomDao().delete(currentChat.getRoomId());
+        chatRooms.remove(currentChat);
+
+        showAlert(Alert.AlertType.ERROR, "User " + selectedUser + " rejected room creation. The room is being deleted.");
+        reloadChatListUI(true);
+      }
+      openChat(currentChat);
+      updateChatListUI();
+      inviteUserButton.setVisible(false);
+    });
+  }
+
+  private void showAlert(Alert.AlertType type, String message) {
+    Alert alert = new Alert(type);
+    alert.setTitle("Information");
+    alert.setHeaderText(null);
+    alert.setContentText(message);
+    alert.showAndWait();
   }
 }

@@ -20,4 +20,13 @@ public class ChatRoom {
   private String cipherMode;
   private String paddingMode;
   private String iv;
+
+  public String getInterlocutor(String currentUser) {
+    if (currentUser.equals(owner)) {
+      return otherUser;
+    } else if (currentUser.equals(otherUser)) {
+      return owner;
+    }
+    return "Unknown";
+  }
 }
