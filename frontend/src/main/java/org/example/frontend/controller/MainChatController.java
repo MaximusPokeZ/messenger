@@ -12,7 +12,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
+import org.example.frontend.cipher_ykwais.constants.CipherMode;
+import org.example.frontend.cipher_ykwais.constants.PaddingMode;
+import org.example.frontend.cipher_ykwais.context.Context;
+import org.example.frontend.cipher_ykwais.rc6.RC6;
+import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.httpToSpring.ChatApiClient;
 import org.example.frontend.manager.*;
@@ -30,12 +36,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -92,9 +101,23 @@ public class MainChatController {
 
   private List<ChatRoom> chatRooms = new ArrayList<>();
 
-  private final Map<String, OutputStream> fileStreams = new HashMap<>();
+  private static class FileTransferState {
+    OutputStream outputStream;
+    byte[] previous;
+
+    FileTransferState(OutputStream os) {
+      this.outputStream = os;
+      this.previous = null;
+    }
+  }
+
+  //private final Map<String, OutputStream> fileStreams = new HashMap<>();
+  private final ConcurrentMap<String, FileTransferState> fileTransfers = new ConcurrentHashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
+
+
+
 
   public void initialize() {
     DBManager.initInstance(currentUserName);
@@ -241,29 +264,50 @@ public class MainChatController {
     }
   }
 
+
+
   private void handleFileMessage(ChatProto.ChatMessage msg) {
+    Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
     try {
-      String name = msg.getFileName();
+      String fileName = msg.getFileName();
       Path dir = Paths.get("downloads");
       Files.createDirectories(dir);
-      Path out = dir.resolve(name);
-      OutputStream os = fileStreams.computeIfAbsent(name,
-              fn -> {
-                try {
-                  return Files.newOutputStream(out, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-                  throw new RuntimeException(e);
-                }
-              }
+      Path out = dir.resolve(fileName);
+
+      FileTransferState state = fileTransfers.computeIfAbsent(fileName, fn -> {
+        try {
+          OutputStream os = Files.newOutputStream(out,
+                  StandardOpenOption.CREATE,
+                  StandardOpenOption.APPEND);
+          return new FileTransferState(os);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      });
+
+      byte[] encryptedChunk = msg.getChunk().toByteArray();
+      Pair<byte[], byte[]> decrypted = context.encryptDecryptInner(
+              encryptedChunk,
+              state.previous,
+              false
       );
-      os.write(msg.getChunk().toByteArray());
+
       if (msg.getIsLast()) {
-        os.close();
-        fileStreams.remove(name);
-        log.info("File done! {}", name);
+        byte[] unpadded = context.removePadding(decrypted.getKey());
+        state.outputStream.write(unpadded);
+        state.outputStream.close();
+        fileTransfers.remove(fileName);
+        log.info("[Файл готов] {}", fileName); //TODO тут можно уже отображать в чат
+      } else {
+        state.outputStream.write(decrypted.getKey());
+        state.previous = decrypted.getValue();
       }
-    } catch (IOException e) {
-      e.printStackTrace();
+    } catch (Exception e) {
+      log.error("Ошибка обработки файла {}", msg.getFileName(), e);
+      FileTransferState failedState = fileTransfers.remove(msg.getFileName());
+      if (failedState != null) {
+        try { failedState.outputStream.close(); } catch (IOException ignored) {}
+      }
     }
   }
 
@@ -334,11 +378,17 @@ public class MainChatController {
       }
     }
 
+    Context contextTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+
+    byte[] encodedData = Base64.getDecoder().decode(msg.getText());
+    Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
+
+
     Message message = Message.builder()
             .roomId(roomId)
             .sender(msg.getFromUserName())
             .timestamp(msg.getDateTime())
-            .content(msg.getText())
+            .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
             .build();
 
     DaoManager.getMessageDao().insert(message);
@@ -521,6 +571,19 @@ public class MainChatController {
     if (text.isEmpty()) return;
     messageInputField.clear();
 
+    Context contextSendTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+
+    byte[] afterPadding = contextSendTextMessage.addPadding(text.getBytes());
+
+    Pair<byte[], byte[]> encrypted = contextSendTextMessage.encryptDecryptInner(afterPadding, null, true);
+
+    log.info("after encrypt: {}", encrypted.getKey());
+
+    String cipherText = Base64.getEncoder().encodeToString(encrypted.getKey());
+    log.info("i send: {}", cipherText);
+
+
+
     ChatRoom room = currentChat;
     if (room == null) return;
 
@@ -545,7 +608,7 @@ public class MainChatController {
     boolean delivered = grpcClient.sendMessage(
             currentUserName,
             Objects.equals(room.getOtherUser(), currentUserName) ? room.getOwner() : room.getOtherUser(),
-            text,
+            cipherText,
             token
     );
 
