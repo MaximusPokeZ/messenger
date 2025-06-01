@@ -145,6 +145,7 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
                                 .setChunkNumber(chunk.getChunkNumber())
                                 .setIsLast(chunk.getIsLast())
                                 .setAmountChunks(totalChunks)
+                                .setToken(chunk.getToken())
                                 .build();
 
                         targetClient.onNext(msg);

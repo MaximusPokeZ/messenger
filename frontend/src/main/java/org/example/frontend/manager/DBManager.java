@@ -71,7 +71,8 @@ public class DBManager {
                   cipher TEXT,
                   cipher_mode TEXT,
                   padding_mode TEXT,
-                  iv TEXT
+                  iv TEXT,
+                  key_bit_length TEXT
               );
             """);
 

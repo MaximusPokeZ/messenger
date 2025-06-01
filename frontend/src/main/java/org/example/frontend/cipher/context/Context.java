@@ -1,10 +1,10 @@
-package org.example.frontend.cipher_ykwais.context;
+package org.example.frontend.cipher.context;
 
 import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.cipher_ykwais.constants.CipherMode;
-import org.example.frontend.cipher_ykwais.constants.PaddingMode;
-import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
+import org.example.frontend.cipher.constants.CipherMode;
+import org.example.frontend.cipher.constants.PaddingMode;
+import org.example.frontend.cipher.interfaces.EncryptorDecryptorSymmetric;
 
 
 import java.io.IOException;

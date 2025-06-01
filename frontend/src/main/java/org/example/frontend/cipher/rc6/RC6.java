@@ -1,9 +1,9 @@
-package org.example.frontend.cipher_ykwais.rc6;
+package org.example.frontend.cipher.rc6;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
-import org.example.frontend.cipher_ykwais.interfaces.KeyExpansion;
-import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
+import org.example.frontend.cipher.interfaces.EncryptorDecryptorSymmetric;
+import org.example.frontend.cipher.interfaces.KeyExpansion;
+import org.example.frontend.cipher.rc6.enums.RC6KeyLength;
 
 
 import java.nio.ByteBuffer;

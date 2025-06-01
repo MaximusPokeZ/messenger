@@ -1,4 +1,4 @@
-package org.example.frontend.cipher_ykwais.magenta.enums;
+package org.example.frontend.cipher.magenta.enums;
 
 public enum MagentaKeyLength {
     KEY_128(16),

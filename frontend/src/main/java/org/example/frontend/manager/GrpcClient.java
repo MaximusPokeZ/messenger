@@ -7,11 +7,9 @@ import io.grpc.stub.StreamObserver;
 import javafx.util.Pair;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.cipher_ykwais.constants.CipherMode;
-import org.example.frontend.cipher_ykwais.constants.PaddingMode;
-import org.example.frontend.cipher_ykwais.context.Context;
-import org.example.frontend.cipher_ykwais.rc6.RC6;
-import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
+import org.example.frontend.cipher.context.Context;
+import org.example.frontend.factory.ContextFactory;
+import org.example.frontend.model.main.ChatRoom;
 import org.example.shared.ChatProto;
 import org.example.shared.ChatServiceGrpc;
 
@@ -113,14 +111,14 @@ public class GrpcClient {
   }
 
 
-  public CompletableFuture<Boolean> sendFile(File file, String fromUser, String toUser) {
+  public CompletableFuture<Boolean> sendFile(File file, String fromUser, String toUser, ChatRoom room, String token) {
     int chunkSize = 1024 * 512; // 512 KB
     byte[] buffer = new byte[chunkSize];
     int index = 0;
     CompletableFuture<Boolean> deliveryFuture = new CompletableFuture<>();
     byte[] previous = null;
 
-    Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+    Context context = ContextFactory.getContext(room);
 
     StreamObserver<ChatProto.SendMessageResponse> respObs = new StreamObserver<>() {
       @Override public void onNext(ChatProto.SendMessageResponse r) {
@@ -160,6 +158,7 @@ public class GrpcClient {
                   .setData(ByteString.copyFrom(encryptedPart.getKey()))
                   .setChunkNumber(index)
                   .setIsLast(false)
+                  .setToken(token)
                   .setAmountChunks(amountChunks)
                   .build();
           reqObs.onNext(chunk);
@@ -187,6 +186,7 @@ public class GrpcClient {
               .setData(ByteString.copyFrom(encryptedPart.getKey()))
               .setChunkNumber(index + 1)
               .setIsLast(true)
+              .setToken(token)
               .setAmountChunks(amountChunks)
               .build();
       reqObs.onNext(last);

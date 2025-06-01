@@ -20,6 +20,7 @@ public class ChatRoom {
   private String cipherMode;
   private String paddingMode;
   private String iv;
+  private String keyBitLength;
 
   public String getInterlocutor(String currentUser) {
     if (currentUser.equals(owner)) {

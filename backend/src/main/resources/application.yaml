@@ -46,8 +46,9 @@ jwt:
 
 logging:
   level:
-    io.grpc: DEBUG
-    org.springframework.security: INFO
+    root : WARN
+    io.grpc: WARN
+    org.springframework.security: WARN
 
 
 grpc:

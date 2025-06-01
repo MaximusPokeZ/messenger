@@ -65,6 +65,7 @@ message FileChunk {
   int32 chunk_number = 5;  // порядковый номер
   bool is_last = 6;  // последний ли чанк
   int64 amount_chunks = 7;
+  string token = 8;
 }
 
 //

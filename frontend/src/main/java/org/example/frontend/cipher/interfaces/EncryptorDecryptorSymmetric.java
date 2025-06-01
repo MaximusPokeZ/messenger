@@ -1,4 +1,4 @@
-package org.example.frontend.cipher_ykwais.interfaces;
+package org.example.frontend.cipher.interfaces;
 
 public interface EncryptorDecryptorSymmetric {
     void setKey(byte[] symmetricKey);

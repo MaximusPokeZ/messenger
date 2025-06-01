@@ -1,7 +1,7 @@
-package org.example.frontend.cipher_ykwais.magenta.supply;
+package org.example.frontend.cipher.magenta.supply;
 
 
-import static org.example.frontend.cipher_ykwais.utils.GaloisOperations.multOnX;
+import static org.example.frontend.cipher.utils.GaloisOperations.multOnX;
 
 public class GeneratorSBlock {
 

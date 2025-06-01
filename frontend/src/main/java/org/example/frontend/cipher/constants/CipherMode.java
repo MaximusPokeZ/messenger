@@ -1,4 +1,4 @@
-package org.example.frontend.cipher_ykwais.constants;
+package org.example.frontend.cipher.constants;
 
 public enum CipherMode {
     ECB,

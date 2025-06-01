@@ -1,4 +1,4 @@
-package org.example.frontend.cipher_ykwais.utils;
+package org.example.frontend.cipher.utils;
 
 import lombok.experimental.UtilityClass;
 

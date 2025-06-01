@@ -1,7 +1,7 @@
-package org.example.frontend.cipher_ykwais.magenta;
+package org.example.frontend.cipher.magenta;
 
 
-import org.example.frontend.cipher_ykwais.interfaces.KeyExpansion;
+import org.example.frontend.cipher.interfaces.KeyExpansion;
 
 public class MagentaKeyExpansion implements KeyExpansion {
 

@@ -1,10 +1,10 @@
-package org.example.frontend.cipher_ykwais.magenta;
+package org.example.frontend.cipher.magenta;
 
 
-import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
-import org.example.frontend.cipher_ykwais.interfaces.KeyExpansion;
-import org.example.frontend.cipher_ykwais.magenta.enums.MagentaKeyLength;
-import org.example.frontend.cipher_ykwais.magenta.supply.GeneratorSBlock;
+import org.example.frontend.cipher.interfaces.EncryptorDecryptorSymmetric;
+import org.example.frontend.cipher.interfaces.KeyExpansion;
+import org.example.frontend.cipher.magenta.enums.MagentaKeyLength;
+import org.example.frontend.cipher.magenta.supply.GeneratorSBlock;
 
 public class Magenta implements EncryptorDecryptorSymmetric {
 

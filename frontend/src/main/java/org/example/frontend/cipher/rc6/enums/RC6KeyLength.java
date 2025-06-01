@@ -1,4 +1,4 @@
-package org.example.frontend.cipher_ykwais.rc6.enums;
+package org.example.frontend.cipher.rc6.enums;
 
 public enum RC6KeyLength {
     KEY_128(16),
