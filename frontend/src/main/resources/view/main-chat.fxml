@@ -100,8 +100,6 @@
                         </HBox.margin>
                     </Button>
                     <Button fx:id="inviteUserButton" text="Invite User" onAction="#onInviteUserClick" visible="false"/>
-
-                    <Label fx:id="chatStatusLabel" HBox.hgrow="NEVER" />
                 </HBox>
 
 

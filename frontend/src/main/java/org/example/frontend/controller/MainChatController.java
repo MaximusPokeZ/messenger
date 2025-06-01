@@ -72,8 +72,6 @@ public class MainChatController {
   @FXML
   private Label chatTitleLabel;
   @FXML
-  private Label chatStatusLabel;
-  @FXML
   private ScrollPane messagesScrollPane;
   @FXML
   private VBox messagesContainer;
@@ -460,7 +458,6 @@ public class MainChatController {
     ivLabel.setText("IV: " + updatedRoom.getIv());
 
     chatTitleLabel.setText(Objects.equals(currentUserName, updatedRoom.getOtherUser()) ? updatedRoom.getOwner() : updatedRoom.getOtherUser());
-    chatStatusLabel.setText("Online"); // пока захардкожено, можно расширить
 
     messagesContainer.getChildren().clear();
 
