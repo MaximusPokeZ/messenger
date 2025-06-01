@@ -11,6 +11,7 @@ import java.util.Base64;
 
 public class ChatSettingsDialog extends Dialog<ChatSetting> {
   private ComboBox<String> cipherBox;
+  private ComboBox<String> keyBitLengthBox;
   private ComboBox<String> cipherModeCombo;
   private ComboBox<String> paddingModeCombo;
   private TextField ivField;
@@ -23,9 +24,15 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
     getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
 
+
+
     cipherBox = new ComboBox<>();
-    cipherBox.getItems().addAll("RC6", "SERPENT");
+    cipherBox.getItems().addAll("RC6", "SERPENT", "MAGENTA");
     cipherBox.getSelectionModel().selectFirst();
+
+    keyBitLengthBox = new ComboBox<>();
+    keyBitLengthBox.getItems().addAll("128", "192", "256");
+    keyBitLengthBox.getSelectionModel().selectFirst();
 
     cipherModeCombo = new ComboBox<>();
     cipherModeCombo.getItems().addAll("ECB", "CBC", "PCBC", "CFB", "OFB", "CTR", "RANDOM_DELTA");
@@ -49,6 +56,9 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     grid.add(new Label("Cipher:"), 0, 0);
     grid.add(cipherBox, 1, 0);
 
+    grid.add(new Label("KeyBitLength:"), 0, 0);
+    grid.add(keyBitLengthBox, 1, 0);
+
     grid.add(new Label("Cipher mode:"), 0, 1);
     grid.add(cipherModeCombo, 1, 1);
 
@@ -68,7 +78,8 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
                 cipherBox.getValue(),
                 cipherModeCombo.getValue(),
                 paddingModeCombo.getValue(),
-                ivField.getText().isEmpty() ? generateRandomIvBase64() : ivField.getText()
+                ivField.getText().isEmpty() ? generateRandomIvBase64() : ivField.getText(),
+                keyBitLengthBox.getValue()
         );
       }
       return null;

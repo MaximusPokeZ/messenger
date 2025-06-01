@@ -17,9 +17,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.cipher_ykwais.constants.CipherMode;
 import org.example.frontend.cipher_ykwais.constants.PaddingMode;
 import org.example.frontend.cipher_ykwais.context.Context;
+import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
+import org.example.frontend.cipher_ykwais.magenta.Magenta;
+import org.example.frontend.cipher_ykwais.magenta.enums.MagentaKeyLength;
 import org.example.frontend.cipher_ykwais.rc6.RC6;
 import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
+import org.example.frontend.cipher_ykwais.serpent.Serpent;
+import org.example.frontend.cipher_ykwais.serpent.SerpentConfiguration;
 import org.example.frontend.dialog.ChatSettingsDialog;
+import org.example.frontend.factory.ContextFactory;
 import org.example.frontend.httpToSpring.ChatApiClient;
 import org.example.frontend.manager.*;
 import org.example.frontend.model.JwtStorage;
@@ -32,6 +38,7 @@ import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 
+import javax.crypto.Cipher;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -111,7 +118,6 @@ public class MainChatController {
     }
   }
 
-  //private final Map<String, OutputStream> fileStreams = new HashMap<>();
   private final ConcurrentMap<String, FileTransferState> fileTransfers = new ConcurrentHashMap<>();
 
   private final String currentUserName = JwtStorage.getUsername();
@@ -234,6 +240,7 @@ public class MainChatController {
               .cipherMode(RoomTokenEncoder.decode(token).cipherMode())
               .paddingMode(RoomTokenEncoder.decode(token).paddingMode())
               .iv(RoomTokenEncoder.decode(token).IV())
+              .keyBitLength(RoomTokenEncoder.decode(token).keyBitLength())
               .build();
 
       DaoManager.getChatRoomDao().insert(room);
@@ -260,6 +267,7 @@ public class MainChatController {
       }
 
       dh.getKey(new BigInteger(msg.getPublicExponent()));
+
       log.info("Shared key get for room {} ", roomId);
     }
   }
@@ -378,7 +386,7 @@ public class MainChatController {
       }
     }
 
-    Context contextTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+    Context contextTextMessage = ContextFactory.getContext(room);
 
     byte[] encodedData = Base64.getDecoder().decode(msg.getText());
     Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
@@ -453,13 +461,15 @@ public class MainChatController {
       log.info("Cipher mode after send: {}", settings.getCipherMode());
       log.info("Padding mode after send: {}", settings.getPaddingMode());
       log.info("IV after send: {}", settings.getIv());
+      log.info("key bit length: {}", settings.getKeyBitLength());
 
       String token = RoomTokenEncoder.encode(
               guid,
               settings.getCipher(),
               settings.getCipherMode(),
               settings.getPaddingMode(),
-              settings.getIv()
+              settings.getIv(),
+              settings.getKeyBitLength()
       );
 
       ChatRoom chatRoom = ChatRoom.builder()
@@ -470,6 +480,7 @@ public class MainChatController {
               .cipherMode(settings.getCipherMode())
               .paddingMode(settings.getPaddingMode())
               .iv(settings.getIv())
+              .keyBitLength(settings.getKeyBitLength())
               .build();
 
       chatRooms.add(chatRoom);
@@ -571,28 +582,26 @@ public class MainChatController {
     if (text.isEmpty()) return;
     messageInputField.clear();
 
-    Context contextSendTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+    ChatRoom room = currentChat;
+    if (room == null) return;
+
+    Context contextSendTextMessage = ContextFactory.getContext(room);
 
     byte[] afterPadding = contextSendTextMessage.addPadding(text.getBytes());
 
     Pair<byte[], byte[]> encrypted = contextSendTextMessage.encryptDecryptInner(afterPadding, null, true);
 
-    log.info("after encrypt: {}", encrypted.getKey());
-
     String cipherText = Base64.getEncoder().encodeToString(encrypted.getKey());
-    log.info("i send: {}", cipherText);
 
 
-
-    ChatRoom room = currentChat;
-    if (room == null) return;
 
     String token = RoomTokenEncoder.encode(
             room.getRoomId(),
             room.getCipher(),
             room.getCipherMode(),
             room.getPaddingMode(),
-            room.getIv()
+            room.getIv(),
+            room.getKeyBitLength()
     );
 
     log.info("Cipher before send: {}", room.getCipher());
@@ -684,6 +693,7 @@ public class MainChatController {
       currentChat.setCipherMode(settings.getCipherMode());
       currentChat.setPaddingMode(settings.getPaddingMode());
       currentChat.setIv(settings.getIv());
+      currentChat.setKeyBitLength(settings.getKeyBitLength());
 
       DaoManager.getChatRoomDao().update(currentChat);
 
@@ -707,7 +717,8 @@ public class MainChatController {
             currentChat.getCipher(),
             currentChat.getCipherMode(),
             currentChat.getPaddingMode(),
-            currentChat.getIv()
+            currentChat.getIv(),
+            currentChat.getKeyBitLength()
     );
 
     log.info("Current Username: {}", currentUserName);

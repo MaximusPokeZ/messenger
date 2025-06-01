@@ -20,4 +20,5 @@ public class ChatRoom {
   private String cipherMode;
   private String paddingMode;
   private String iv;
+  private String keyBitLength;
 }
