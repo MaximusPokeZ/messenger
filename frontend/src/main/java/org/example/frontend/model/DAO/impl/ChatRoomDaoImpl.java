@@ -32,7 +32,8 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                   cipher TEXT,
                   cipher_mode TEXT,
                   padding_mode TEXT,
-                  iv TEXT
+                  iv TEXT,
+                  key_bit_length TEXT
             );
             """;
     try (Statement stmt = connection.createStatement()) {
@@ -46,8 +47,8 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
   public void insert(ChatRoom room) {
     String sql = """
                 INSERT INTO chat_rooms 
-                (room_id, owner, other_user, last_message, last_message_time, cipher, cipher_mode, padding_mode, iv) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (room_id, owner, other_user, last_message, last_message_time, cipher, cipher_mode, padding_mode, iv, key_bit_length) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
       stmt.setString(1, room.getRoomId());
@@ -59,6 +60,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(7, room.getCipherMode());
       stmt.setString(8, room.getPaddingMode());
       stmt.setString(9, room.getIv());
+      stmt.setString(10, room.getKeyBitLength());
       stmt.executeUpdate();
 
       log.info("Inserted chat_room {} to {} ", room.getRoomId(), room.getOwner());
@@ -83,7 +85,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
 
   @Override
   public void update(ChatRoom room) {
-    String sql = "UPDATE chat_rooms SET owner = ?, other_user = ?, last_message = ?, last_message_time = ?, cipher = ?, cipher_mode = ?, padding_mode = ?, iv = ? WHERE room_id = ?";
+    String sql = "UPDATE chat_rooms SET owner = ?, other_user = ?, last_message = ?, last_message_time = ?, cipher = ?, cipher_mode = ?, padding_mode = ?, iv = ?, key_bit_length = ? WHERE room_id = ?";
 
     try (PreparedStatement stmt = connection.prepareStatement(sql)) {
       stmt.setString(1, room.getOwner());
@@ -95,6 +97,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(7, room.getPaddingMode());
       stmt.setString(8, room.getIv());
       stmt.setString(9, room.getRoomId());
+      stmt.setString(10, room.getKeyBitLength());
 
       stmt.executeUpdate();
 
@@ -123,6 +126,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                 .cipherMode(rs.getString("cipher_mode"))
                 .paddingMode(rs.getString("padding_mode"))
                 .iv(rs.getString("iv"))
+                .keyBitLength(rs.getString("key_bit_length"))
                 .build());
       }
     } catch (SQLException e) {
@@ -148,6 +152,7 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
                   .cipherMode(rs.getString("cipher_mode"))
                   .paddingMode(rs.getString("padding_mode"))
                   .iv(rs.getString("iv"))
+                  .keyBitLength(rs.getString("key_bit_length"))
                   .build());
         }
       }

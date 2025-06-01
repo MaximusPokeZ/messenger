@@ -14,16 +14,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.cipher_ykwais.constants.CipherMode;
-import org.example.frontend.cipher_ykwais.constants.PaddingMode;
-import org.example.frontend.cipher_ykwais.context.Context;
-import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
-import org.example.frontend.cipher_ykwais.magenta.Magenta;
-import org.example.frontend.cipher_ykwais.magenta.enums.MagentaKeyLength;
-import org.example.frontend.cipher_ykwais.rc6.RC6;
-import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
-import org.example.frontend.cipher_ykwais.serpent.Serpent;
-import org.example.frontend.cipher_ykwais.serpent.SerpentConfiguration;
+import org.example.frontend.cipher.context.Context;
 import org.example.frontend.dialog.ChatSettingsDialog;
 import org.example.frontend.factory.ContextFactory;
 import org.example.frontend.httpToSpring.ChatApiClient;
@@ -38,12 +29,10 @@ import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 
-import javax.crypto.Cipher;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,7 +42,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -275,7 +263,74 @@ public class MainChatController {
 
 
   private void handleFileMessage(ChatProto.ChatMessage msg) {
-    Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+
+    RoomTokenEncoder.DecodedRoomToken decodedToken;
+    try {
+      decodedToken = RoomTokenEncoder.decode(msg.getToken());
+    } catch (Exception e) {
+      log.error("Failed to decode token: {}", msg.getToken(), e);
+      return;
+    }
+
+    String roomId = decodedToken.guid();
+    Optional<ChatRoom> optionalRoom = DaoManager.getChatRoomDao().findByRoomId(roomId);
+
+    if (optionalRoom.isEmpty()) {
+      log.warn("No chat room found for message: {}", msg);
+      return;
+    }
+
+    ChatRoom room = optionalRoom.get();
+
+    boolean changed = !room.getCipher().equals(decodedToken.cipher()) ||
+            !room.getCipherMode().equals(decodedToken.cipherMode()) ||
+            !room.getPaddingMode().equals(decodedToken.paddingMode()) ||
+            !room.getIv().equals(decodedToken.IV());
+
+    if (changed) {
+      log.info("Room settings changed for room '{}'. Updating...", roomId);
+      log.info("Cipher: {}", decodedToken.cipher());
+      log.info("Cipher mode: {}", decodedToken.cipherMode());
+      log.info("Padding mode: {}", decodedToken.paddingMode());
+      log.info("IV: {}", decodedToken.IV());
+
+      log.info("Cipher in room: {}", room.getCipher());
+      log.info("Cipher mode in room: {}", room.getCipherMode());
+      log.info("Padding mode in room: {}", room.getPaddingMode());
+      log.info("IV in room: {}", room.getIv());
+
+
+      room.setCipher(decodedToken.cipher());
+      room.setCipherMode(decodedToken.cipherMode());
+      room.setPaddingMode(decodedToken.paddingMode());
+      room.setIv(decodedToken.IV());
+
+      log.info("Cipher in room after: {}", room.getCipher());
+      log.info("Cipher mode in room after: {}", room.getCipherMode());
+      log.info("Padding mode in room after: {}", room.getPaddingMode());
+      log.info("IV in room after: {}", room.getIv());
+
+
+      DaoManager.getChatRoomDao().update(room);
+
+      for (int i = 0; i < chatRooms.size(); i++) {
+        if (chatRooms.get(i).getRoomId().equals(roomId)) {
+          chatRooms.set(i, room);
+          break;
+        }
+      }
+
+      if (currentChat != null && currentChat.getRoomId().equals(roomId)) {
+        currentChat = room;
+        cipherLabel.setText("Cipher: " + room.getCipher());
+        modeLabel.setText("Mode: " + room.getCipherMode());
+        paddingLabel.setText("Padding: " + room.getPaddingMode());
+        ivLabel.setText("IV: " + room.getIv());
+        log.info("Changed room settings for {}", roomId);
+      }
+    }
+
+    Context context = ContextFactory.getContext(room);
     try {
       String fileName = msg.getFileName();
       Path dir = Paths.get("downloads");
@@ -649,11 +704,21 @@ public class MainChatController {
       log.info("Your chose: {}", selectedFile.getName());
 
       ChatRoom room = currentChat;
+      if (room == null) return;
+
+      String token = RoomTokenEncoder.encode(
+              room.getRoomId(),
+              room.getCipher(),
+              room.getCipherMode(),
+              room.getPaddingMode(),
+              room.getIv(),
+              room.getKeyBitLength()
+      );
 
       boolean delivered = false;
 
       try {
-        delivered = grpcClient.sendFile(selectedFile, currentUserName, room.getOtherUser())
+        delivered = grpcClient.sendFile(selectedFile, currentUserName, room.getOtherUser(), room, token)
                 .orTimeout(5, TimeUnit.SECONDS)
                 .get();
       } catch (Exception e) {

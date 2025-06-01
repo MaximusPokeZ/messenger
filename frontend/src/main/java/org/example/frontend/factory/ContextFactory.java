@@ -1,24 +1,29 @@
 package org.example.frontend.factory;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.frontend.cipher_ykwais.constants.CipherMode;
-import org.example.frontend.cipher_ykwais.constants.PaddingMode;
-import org.example.frontend.cipher_ykwais.context.Context;
-import org.example.frontend.cipher_ykwais.interfaces.EncryptorDecryptorSymmetric;
-import org.example.frontend.cipher_ykwais.magenta.Magenta;
-import org.example.frontend.cipher_ykwais.magenta.enums.MagentaKeyLength;
-import org.example.frontend.cipher_ykwais.rc6.RC6;
-import org.example.frontend.cipher_ykwais.rc6.enums.RC6KeyLength;
-import org.example.frontend.cipher_ykwais.serpent.Serpent;
-import org.example.frontend.cipher_ykwais.serpent.SerpentConfiguration;
+import org.example.frontend.cipher.constants.CipherMode;
+import org.example.frontend.cipher.constants.PaddingMode;
+import org.example.frontend.cipher.context.Context;
+import org.example.frontend.cipher.interfaces.EncryptorDecryptorSymmetric;
+import org.example.frontend.cipher.magenta.Magenta;
+import org.example.frontend.cipher.magenta.enums.MagentaKeyLength;
+import org.example.frontend.cipher.rc6.RC6;
+import org.example.frontend.cipher.rc6.enums.RC6KeyLength;
+import org.example.frontend.cipher.serpent.Serpent;
+import org.example.frontend.cipher.serpent.SerpentConfiguration;
 import org.example.frontend.manager.DiffieHellmanManager;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.utils.DiffieHellman;
+
+import java.util.Base64;
 
 @Slf4j
 public class ContextFactory {
     private ContextFactory() {}
     public static Context getContext(ChatRoom room) {
+        if (room == null) {
+            throw new IllegalArgumentException("Chat room cannot be null!!!!");
+        }
         log.info("content of current room: {}", room);
         CipherMode currentCipherMpde =
                 switch (room.getCipherMode()) {
@@ -99,6 +104,9 @@ public class ContextFactory {
                     default -> throw new IllegalArgumentException("Unexpected value: " + room.getCipher());
                 };
 
-        return new Context(algo, currentCipherMpde, currentPaddingMode, room.getIv().getBytes());
+
+        byte[] decodedIv = Base64.getDecoder().decode(room.getIv());
+        log.info("IV: {}", decodedIv);
+        return new Context(algo, currentCipherMpde, currentPaddingMode, decodedIv, 69);
     }
 }

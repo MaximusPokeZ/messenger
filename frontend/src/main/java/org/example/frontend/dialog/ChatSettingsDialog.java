@@ -56,18 +56,18 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     grid.add(new Label("Cipher:"), 0, 0);
     grid.add(cipherBox, 1, 0);
 
-    grid.add(new Label("KeyBitLength:"), 0, 0);
-    grid.add(keyBitLengthBox, 1, 0);
+    grid.add(new Label("KeyBitLength:"), 0, 1);
+    grid.add(keyBitLengthBox, 1, 1);
 
-    grid.add(new Label("Cipher mode:"), 0, 1);
-    grid.add(cipherModeCombo, 1, 1);
+    grid.add(new Label("Cipher mode:"), 0, 2);
+    grid.add(cipherModeCombo, 1, 2);
 
-    grid.add(new Label("Padding mode:"), 0, 2);
-    grid.add(paddingModeCombo, 1, 2);
+    grid.add(new Label("Padding mode:"), 0, 3);
+    grid.add(paddingModeCombo, 1, 3);
 
-    grid.add(new Label("IV (Base64):"), 0, 3);
-    grid.add(ivField, 1, 3);
-    grid.add(generateIvButton, 2, 3);
+    grid.add(new Label("IV (Base64):"), 0, 4);
+    grid.add(ivField, 1, 4);
+    grid.add(generateIvButton, 2, 4);
 
 
     getDialogPane().setContent(grid);
@@ -103,5 +103,6 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     cipherModeCombo.setValue(room.getCipherMode());
     paddingModeCombo.setValue(room.getPaddingMode());
     ivField.setText(room.getIv());
+    keyBitLengthBox.setValue(room.getKeyBitLength());
   }
 }
