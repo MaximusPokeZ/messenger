@@ -24,8 +24,6 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
     getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
 
-
-
     cipherBox = new ComboBox<>();
     cipherBox.getItems().addAll("RC6", "SERPENT", "MAGENTA");
     cipherBox.getSelectionModel().selectFirst();

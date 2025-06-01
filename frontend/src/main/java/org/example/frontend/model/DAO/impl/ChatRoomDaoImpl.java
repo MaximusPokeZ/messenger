@@ -96,8 +96,8 @@ public class ChatRoomDaoImpl implements ChatRoomDao {
       stmt.setString(6, room.getCipherMode());
       stmt.setString(7, room.getPaddingMode());
       stmt.setString(8, room.getIv());
-      stmt.setString(9, room.getRoomId());
-      stmt.setString(10, room.getKeyBitLength());
+      stmt.setString(9, room.getKeyBitLength());
+      stmt.setString(10, room.getRoomId());
 
       stmt.executeUpdate();
 

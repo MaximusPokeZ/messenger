@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 public class MainChatController {
 
   private final GrpcClient grpcClient = GrpcClient.getInstance();
+  public Label keyLengthLabel;
 
   @FXML
   private Button inviteUserButton;
@@ -560,10 +561,17 @@ public class MainChatController {
     chatDetailsPane.setDisable(false);
     leaveChatButton.setDisable(false);
 
+    log.info("Updating chat room: {}", updatedRoom.getRoomId());
+    log.info("Updating cipher mode: {}", updatedRoom.getCipherMode());
+    log.info("Updating padding mode: {}", updatedRoom.getPaddingMode());
+    log.info("Updating iv: {}", updatedRoom.getIv());
+    log.info("Updating key bit length: {}", updatedRoom.getKeyBitLength());
+
     cipherLabel.setText("Cipher: " + updatedRoom.getCipher());
     modeLabel.setText("Mode: " + updatedRoom.getCipherMode());
     paddingLabel.setText("Padding: " + updatedRoom.getPaddingMode());
     ivLabel.setText("IV: " + updatedRoom.getIv());
+    keyLengthLabel.setText("Key length bits: " + updatedRoom.getKeyBitLength());
 
     chatTitleLabel.setText(updatedRoom.getInterlocutor(currentUserName));
 
@@ -641,7 +649,6 @@ public class MainChatController {
     messageInputField.clear();
 
     ChatRoom room = currentChat;
-    if (room == null) return;
 
     Context contextSendTextMessage = ContextFactory.getContext(room);
 
@@ -867,6 +874,7 @@ public class MainChatController {
       chatRooms.remove(currentChat);
       currentChat = null;
       leaveChatButton.setDisable(true);
+      inviteUserButton.setVisible(false);
       messageInputField.setDisable(true);
       sendButton.setDisable(true);
       sendFileButton.setDisable(true);
@@ -876,6 +884,8 @@ public class MainChatController {
     modeLabel.setText("Mode:");
     paddingLabel.setText("Padding:");
     ivLabel.setText("IV");
+    keyLengthLabel.setText("Key Length:");
+    leaveChatButton.setDisable(true);
     chatDetailsPane.setDisable(true);
   }
 
@@ -1016,8 +1026,7 @@ public class MainChatController {
         inviteUserButton.setVisible(false);
       } else {
         currentChat.setOtherUser(null);
-
-        showAlert(Alert.AlertType.ERROR, "User " + selectedUser + " rejected room creation. The room is being deleted.");
+        showAlert(Alert.AlertType.ERROR, "User " + selectedUser + " rejected room creation.");
       }
       openChat(currentChat);
       updateChatListUI();
