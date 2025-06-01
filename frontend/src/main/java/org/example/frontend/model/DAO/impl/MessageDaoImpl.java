@@ -25,8 +25,8 @@ public class MessageDaoImpl implements MessageDao {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 room_id TEXT NOT NULL,
                 sender TEXT NOT NULL,
-                content TEXT,
-                file_path TEXT,
+                content TEXT NULL,
+                file_path TEXT NULL,
                 timestamp INTEGER NOT NULL,
                 FOREIGN KEY (room_id) REFERENCES chat_rooms(room_id) ON DELETE CASCADE
             );

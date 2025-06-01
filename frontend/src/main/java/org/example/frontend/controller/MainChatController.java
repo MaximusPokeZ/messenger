@@ -656,7 +656,13 @@ public class MainChatController {
 
       log.info("is delivered???? : {}", delivered);
       if(delivered) {
-        //TODO отображать, записывать в бд, что мы файл отправили
+        String savedPath = selectedFile.getAbsolutePath();
+        Message fileMessage = Message.builder()
+                .roomId(room.getRoomId())
+                .sender(currentUserName)
+                .timestamp(System.currentTimeMillis())
+                .filePath(savedPath)
+                .build();
       }
     } else {
       log.info("Выбор файла отменён.");

@@ -55,13 +55,13 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
 
 
                 recipientStream.onNext(message);
+                isDelivered = true;
 
             } catch (StatusRuntimeException e) {
                 clients.remove(toUser);
             }
 
         }
-        isDelivered = true;
         ChatProto.InitRoomResponse response = ChatProto.InitRoomResponse.newBuilder()
                 .setIsDelivered(isDelivered)
                 .build();
