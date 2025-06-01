@@ -113,8 +113,8 @@ public class MainChatController {
 
   private final String currentUserName = JwtStorage.getUsername();
 
-  private Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
-  private byte[] previous = null; //для некоторых режимов шифрования
+
+
 
   public void initialize() {
     DBManager.initInstance(currentUserName);
@@ -218,6 +218,7 @@ public class MainChatController {
 
 
   private void handleFileMessage(ChatProto.ChatMessage msg) {
+    Context context = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
     try {
       String fileName = msg.getFileName();
       Path dir = Paths.get("downloads");
