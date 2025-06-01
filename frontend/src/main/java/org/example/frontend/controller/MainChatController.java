@@ -460,7 +460,14 @@ public class MainChatController {
 
       this.currentChat = chatRoom;
       updateChatListUI();
-      sendInitRoomRequest(username, guid);
+      if (!sendInitRoomRequest(username, guid)) {
+        DaoManager.getMessageDao().deleteByRoomId(currentChat.getRoomId());
+        DaoManager.getChatRoomDao().delete(currentChat.getRoomId());
+        chatRooms.remove(currentChat);
+
+        showAlert(Alert.AlertType.ERROR, "User " + username + " rejected room creation. The room is being deleted.");
+        reloadChatListUI(true);
+      }
 
       openChat(chatRoom);
     });
@@ -912,9 +919,10 @@ public class MainChatController {
 
     Optional<String> result = dialog.showAndWait();
     result.ifPresent(selectedUser -> {
-      currentChat.setOtherUser(selectedUser);
-      DaoManager.getChatRoomDao().update(currentChat);
       if (sendInitRoomRequest(selectedUser, currentChat.getRoomId())) {
+        currentChat.setOtherUser(selectedUser);
+        DaoManager.getChatRoomDao().update(currentChat);
+
         showAlert(Alert.AlertType.INFORMATION, "The user has been invited to the chat");
 
         for (int i = 0; i < chatRooms.size(); i++) {
@@ -923,17 +931,14 @@ public class MainChatController {
             break;
           }
         }
+        inviteUserButton.setVisible(false);
       } else {
-        DaoManager.getMessageDao().deleteByRoomId(currentChat.getRoomId());
-        DaoManager.getChatRoomDao().delete(currentChat.getRoomId());
-        chatRooms.remove(currentChat);
+        currentChat.setOtherUser(null);
 
         showAlert(Alert.AlertType.ERROR, "User " + selectedUser + " rejected room creation. The room is being deleted.");
-        reloadChatListUI(true);
       }
       openChat(currentChat);
       updateChatListUI();
-      inviteUserButton.setVisible(false);
     });
   }
 
