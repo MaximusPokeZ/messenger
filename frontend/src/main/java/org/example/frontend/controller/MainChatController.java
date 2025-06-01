@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -309,11 +310,17 @@ public class MainChatController {
       }
     }
 
+    Context contextTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+
+    byte[] encodedData = Base64.getDecoder().decode(msg.getText());
+    Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
+
+
     Message message = Message.builder()
             .roomId(roomId)
             .sender(msg.getFromUserName())
             .timestamp(msg.getDateTime())
-            .content(msg.getText())
+            .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
             .build();
 
     DaoManager.getMessageDao().insert(message);
@@ -490,6 +497,19 @@ public class MainChatController {
     if (text.isEmpty()) return;
     messageInputField.clear();
 
+    Context contextSendTextMessage = new Context(new RC6(RC6KeyLength.KEY_128, new byte[16]), CipherMode.ECB, PaddingMode.ANSI_X923, new byte[16]);
+
+    byte[] afterPadding = contextSendTextMessage.addPadding(text.getBytes());
+
+    Pair<byte[], byte[]> encrypted = contextSendTextMessage.encryptDecryptInner(afterPadding, null, true);
+
+    log.info("after encrypt: {}", encrypted.getKey());
+
+    String cipherText = Base64.getEncoder().encodeToString(encrypted.getKey());
+    log.info("i send: {}", cipherText);
+
+
+
     ChatRoom room = currentChat;
     if (room == null) return;
 
@@ -506,7 +526,7 @@ public class MainChatController {
     boolean delivered = grpcClient.sendMessage(
             currentUserName,
             room.getOtherUser(),
-            text,
+            cipherText,
             token
     );
 

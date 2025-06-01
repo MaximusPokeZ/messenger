@@ -128,7 +128,7 @@ public class GrpcClient {
       int read;
       long amountBytes = file.length();
       log.info("amount bytes: {}", amountBytes);
-      long amountChunks = (long) Math.ceil((double)amountBytes / (double)chunkSize) + 1; //так как есть 1 пустой еще
+      long amountChunks = (long) Math.ceil((double)amountBytes / (double)chunkSize) + 1; //так как есть 1 пустой еще //TODO уже не актуально
       log.info("amount chunks: {}", amountChunks);
       byte[] lastBlock = null;
 
