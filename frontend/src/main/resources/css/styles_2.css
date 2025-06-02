@@ -323,10 +323,35 @@
     -fx-font-size: 14px;
 }
 
+.input-field .list-cell {
+    -fx-text-fill: white;
+}
+
+.input-field .list-view .list-cell {
+    -fx-text-fill: black;
+    -fx-background-color: white;
+}
+
+.input-field .list-view .list-cell:filled:hover {
+    -fx-background-color: #4e5254;
+}
+
+.input-field .list-view .list-cell:filled:selected {
+    -fx-background-color: #61afef;
+}
+
+.input-field .arrow {
+    -fx-background-color: white;
+}
+
 .input-field:focused {
     -fx-background-color: #4e5254;
     -fx-border-color: #61afef;
     -fx-border-width: 2;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-text-fill: black;
 }
 
 .primary-button {
