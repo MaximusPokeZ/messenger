@@ -3,6 +3,7 @@ package org.example.frontend.manager;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -25,6 +26,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -63,10 +65,18 @@ public class GrpcClient {
     return instance;
   }
 
-  public void shutdown() {
+  public void shutdown() throws StatusRuntimeException {
     if (channel != null && !channel.isShutdown()) {
       channel.shutdownNow();
     }
+//    channel.shutdown();
+//    try {
+//      if (!channel.awaitTermination(1, TimeUnit.SECONDS)) {
+//        channel.shutdownNow();
+//      }
+//    } catch (InterruptedException e) {
+//      channel.shutdownNow();
+//    }
   }
 
   public void connect(String username, Consumer<ChatProto.ChatMessage> onMessage, Runnable onCompleted, Consumer<Throwable> onError) {
@@ -128,7 +138,14 @@ public class GrpcClient {
     CompletableFuture<Boolean> deliveryFuture = new CompletableFuture<>();
     byte[] previous = null;
 
-    Context context = ContextFactory.getContext(room);
+    Context context;
+    try{
+      context = ContextFactory.getContext(room);
+    } catch (Exception e) {
+      log.info("there no key for cipher");
+      deliveryFuture.complete(false);
+      return deliveryFuture;
+    }
 
     FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/view/progress-bar.fxml"));
     Parent root = fxmlLoader.load();
@@ -253,7 +270,7 @@ public class GrpcClient {
     return response.getIsDelivered();
   }
 
-  public static void resetInstance() {
+  public static void resetInstance() throws StatusRuntimeException {
     if (instance != null) {
       instance.shutdown();
     }

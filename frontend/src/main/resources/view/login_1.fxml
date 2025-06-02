@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/23.0.1"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.frontend.controller.LoginController"
+      styleClass="root"
+      alignment="CENTER">
+
+    <VBox fx:id="loginBox"
+          alignment="CENTER"
+          spacing="20.0"
+          styleClass="login-container"
+          maxWidth="Infinity"
+          VBox.vgrow="ALWAYS">
+
+        <Label styleClass="login-title" text="Secure Chat">
+            <font>
+                <Font name="System Bold" size="24.0"/>
+            </font>
+        </Label>
+
+        <Label styleClass="login-subtitle" text="Login to your account">
+            <font>
+                <Font size="14.0"/>
+            </font>
+        </Label>
+
+        <VBox spacing="15.0" styleClass="form-container">
+
+            <padding>
+                <Insets top="10" right="30" bottom="10" left="30"/>
+            </padding>
+
+            <VBox spacing="5.0">
+                <Label text="Username:" styleClass="label"/>
+                <TextField fx:id="usernameField"
+                           promptText="Enter username"
+                           styleClass="input-field"/>
+            </VBox>
+
+            <VBox spacing="5.0">
+                <Label text="Password:" styleClass="label"/>
+                <PasswordField fx:id="passwordField"
+                               promptText="Enter password"
+                               styleClass="input-field"/>
+            </VBox>
+
+            <Label fx:id="errorLabel"
+                   styleClass="error-label"
+                   text=""
+                   visible="false"/>
+
+            <HBox alignment="CENTER">
+                <Button fx:id="loginButton"
+                        onAction="#onLoginButtonClick"
+                        styleClass="primary-button"
+                        text="Login"
+                        maxWidth="Infinity"/>
+            </HBox>
+
+            <HBox alignment="CENTER" spacing="5.0">
+                <Label text="Don't have an account?" styleClass="label"/>
+                <Hyperlink onAction="#onRegisterLinkClick"
+                           text="Register"
+                           styleClass="hyperlink"/>
+            </HBox>
+
+        </VBox>
+    </VBox>
+
+</VBox>

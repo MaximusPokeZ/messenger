@@ -3,11 +3,13 @@ package org.example.frontend.dialog;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import org.example.frontend.manager.SceneManager;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.frontend.model.main.ChatSetting;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Objects;
 
 public class ChatSettingsDialog extends Dialog<ChatSetting> {
   private ComboBox<String> cipherBox;
@@ -27,24 +29,30 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
     cipherBox = new ComboBox<>();
     cipherBox.getItems().addAll("RC6", "SERPENT", "MAGENTA");
     cipherBox.getSelectionModel().selectFirst();
+    cipherBox.getStyleClass().add("input-field");
 
     keyBitLengthBox = new ComboBox<>();
     keyBitLengthBox.getItems().addAll("128", "192", "256");
     keyBitLengthBox.getSelectionModel().selectFirst();
+    keyBitLengthBox.getStyleClass().add("input-field");
 
     cipherModeCombo = new ComboBox<>();
     cipherModeCombo.getItems().addAll("ECB", "CBC", "PCBC", "CFB", "OFB", "CTR", "RANDOM_DELTA");
     cipherModeCombo.getSelectionModel().selectFirst();
+    cipherModeCombo.getStyleClass().add("input-field");
 
     paddingModeCombo = new ComboBox<>();
     paddingModeCombo.getItems().addAll("ANSI_X923", "ZEROS", "PKCS7", "ISO_10126");
     paddingModeCombo.getSelectionModel().selectFirst();
+    paddingModeCombo.getStyleClass().add("input-field");
 
     ivField = new TextField();
     ivField.setPromptText("Base64 IV");
+    ivField.getStyleClass().add("input-field");
 
     generateIvButton = new Button("Generate IV");
     generateIvButton.setOnAction(e -> generateIv());
+    generateIvButton.getStyleClass().add("secondary-button");
 
     GridPane grid = new GridPane();
     grid.setHgap(10);
@@ -69,6 +77,12 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
 
 
     getDialogPane().setContent(grid);
+
+    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+
+
+    getDialogPane().getStylesheets().add(stylesPath);
+
 
     setResultConverter(dialogButton -> {
       if (dialogButton == createButtonType) {
