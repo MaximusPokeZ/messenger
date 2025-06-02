@@ -4,10 +4,17 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Pair;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.cipher.context.Context;
+import org.example.frontend.controller.FileTransferProgressController;
 import org.example.frontend.factory.ContextFactory;
 import org.example.frontend.model.main.ChatRoom;
 import org.example.shared.ChatProto;
@@ -22,6 +29,8 @@ import java.util.function.Consumer;
 
 @Slf4j
 public class GrpcClient {
+  private final FileTransferProgressController fileController = new FileTransferProgressController();
+
   private final ManagedChannel channel;
 
   @Getter
@@ -112,7 +121,7 @@ public class GrpcClient {
   }
 
 
-  public CompletableFuture<Boolean> sendFile(File file, String fromUser, String toUser, ChatRoom room, String token) {
+  public CompletableFuture<Boolean> sendFile(File file, String fromUser, String toUser, ChatRoom room, String token) throws IOException {
     int chunkSize = 1024 * 512; // 512 KB
     byte[] buffer = new byte[chunkSize];
     int index = 0;
@@ -121,19 +130,35 @@ public class GrpcClient {
 
     Context context = ContextFactory.getContext(room);
 
+    FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/view/progress-bar.fxml"));
+    Parent root = fxmlLoader.load();
+    FileTransferProgressController fileController = fxmlLoader.getController();
+    Scene scene = new Scene(root);
+
+    Stage progressStage = new Stage();
+    progressStage.setScene(scene);
+    progressStage.setTitle("Sending file");
+    progressStage.initModality(Modality.APPLICATION_MODAL);
+    progressStage.setOnCloseRequest(e -> deliveryFuture.cancel(true));
+    Platform.runLater(progressStage::show);
+
     StreamObserver<ChatProto.SendMessageResponse> respObs = new StreamObserver<>() {
-      @Override public void onNext(ChatProto.SendMessageResponse r) {
+      @Override
+      public void onNext(ChatProto.SendMessageResponse r) {
         if (r.getFullyDeliveredFile()) {
+          Platform.runLater(fileController::setComplete);
           deliveryFuture.complete(true);
         }
-        //TODO здесь можно обновлять прогресс бар для того, кто отправляет
-//        Platform.runLater(() -> {
-//          progressBar.setProgress(r.getChunkNumber() / (double) r.getAmountChunks());
-//        });
       }
-      @Override public void onError(Throwable t) { t.printStackTrace(); }
-      @Override public void onCompleted() {
+
+      @Override
+      public void onError(Throwable t) {
+        Platform.runLater(() -> fileController.setError(t.getMessage()));
+        deliveryFuture.completeExceptionally(t);
       }
+
+      @Override
+      public void onCompleted() {}
     };
 
     StreamObserver<ChatProto.FileChunk> reqObs = asyncStub.sendFile(respObs);
@@ -141,15 +166,14 @@ public class GrpcClient {
       int read;
       long amountBytes = file.length();
       log.info("amount bytes: {}", amountBytes);
-      long amountChunks = (long) Math.ceil((double)amountBytes / (double)chunkSize) + 1; //так как есть 1 пустой еще //TODO уже не актуально
+      long amountChunks = (long) Math.ceil((double) amountBytes / (double) chunkSize) + 1;
       log.info("amount chunks: {}", amountChunks);
       byte[] lastBlock = null;
 
       while ((read = fis.read(buffer)) != -1) {
-
         if (lastBlock != null) {
           index++;
-          Pair<byte[], byte[]> encryptedPart = context.encryptDecryptInner(lastBlock, previous,true);
+          Pair<byte[], byte[]> encryptedPart = context.encryptDecryptInner(lastBlock, previous, true);
           previous = encryptedPart.getValue();
 
           ChatProto.FileChunk chunk = ChatProto.FileChunk.newBuilder()
@@ -163,21 +187,21 @@ public class GrpcClient {
                   .setAmountChunks(amountChunks)
                   .build();
           reqObs.onNext(chunk);
+
+          int finalIndex = index;
+          Platform.runLater(() -> fileController.updateProgress(finalIndex, amountChunks));
         }
 
         lastBlock = Arrays.copyOf(buffer, read);
       }
 
       Pair<byte[], byte[]> encryptedPart;
-
       if (lastBlock != null) {
         byte[] paddedBlock = context.addPadding(lastBlock);
-        encryptedPart = context.encryptDecryptInner(paddedBlock, previous,true);
-
+        encryptedPart = context.encryptDecryptInner(paddedBlock, previous, true);
       } else {
         byte[] emptyPadded = context.addPadding(new byte[0]);
-        encryptedPart = context.encryptDecryptInner(emptyPadded, previous,true);
-
+        encryptedPart = context.encryptDecryptInner(emptyPadded, previous, true);
       }
 
       ChatProto.FileChunk last = ChatProto.FileChunk.newBuilder()
@@ -192,8 +216,26 @@ public class GrpcClient {
               .build();
       reqObs.onNext(last);
       reqObs.onCompleted();
-    } catch (IOException e) {
+
+    } catch (Exception e) {
       reqObs.onError(e);
+      throw e;
+    } finally {
+      deliveryFuture.whenComplete((res, ex) -> {
+        Platform.runLater(() -> {
+          if (ex != null) {
+            fileController.setError(ex.getMessage());
+          }
+          new Thread(() -> {
+            try {
+              Thread.sleep(2000); // Задержка перед закрытием
+            } catch (InterruptedException ie) {
+              Thread.currentThread().interrupt();
+            }
+            Platform.runLater(progressStage::close);
+          }).start();
+        });
+      });
     }
     return deliveryFuture;
   }
@@ -217,6 +259,4 @@ public class GrpcClient {
     }
     instance = null;
   }
-
-
 }

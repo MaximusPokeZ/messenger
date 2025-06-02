@@ -8,17 +8,22 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.example.frontend.cipher.context.Context;
@@ -52,6 +57,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import javafx.scene.media.*;
+import javafx.scene.image.*;
+import javafx.scene.layout.*;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+import javafx.scene.Cursor;
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
 
 @Slf4j
 public class MainChatController {
@@ -607,8 +624,7 @@ public class MainChatController {
 
     if (message.getFilePath() != null) {
       Path filePath = Paths.get(message.getFilePath());
-
-      contentNode = getHyperlink(message, filePath);
+      contentNode = createMediaContent(message, filePath);
     } else {
       Label label = new Label(String.format("[%s] %s",
               Instant.ofEpochMilli(message.getTimestamp()),
@@ -625,13 +641,386 @@ public class MainChatController {
 
     if (message.getSender().equals(currentUserName)) {
       bubble.setAlignment(Pos.CENTER_LEFT);
-      contentNode.setStyle("-fx-background-color: #d0ffd0; -fx-padding: 10; -fx-background-radius: 10;");
+      contentNode.setStyle(contentNode.getStyle() +
+              "; -fx-background-color: #d0ffd0; -fx-padding: 10; -fx-background-radius: 10;");
     } else {
       bubble.setAlignment(Pos.CENTER_RIGHT);
-      contentNode.setStyle("-fx-background-color: #d0d0ff; -fx-padding: 10; -fx-background-radius: 10;");
+      contentNode.setStyle(contentNode.getStyle() +
+              "; -fx-background-color: #d0d0ff; -fx-padding: 10; -fx-background-radius: 10;");
     }
 
     return bubble;
+  }
+
+  private Node createMediaContent(Message message, Path filePath) {
+    String fileName = filePath.getFileName().toString().toLowerCase();
+    String fileExtension = getFileExtension(fileName);
+
+    try {
+      return switch (fileExtension) {
+        case "jpg", "jpeg", "png", "bmp" -> createImageContent(filePath, message);
+        case "gif" -> createGifContent(filePath, message);
+        case "mp4", "avi", "mov", "wmv" -> createVideoContent(filePath, message);
+        case "mp3", "wav", "flac", "aac" -> createAudioContent(filePath, message);
+        default -> createFileLink(message, filePath);
+      };
+    } catch (Exception e) {
+      e.printStackTrace();
+      return createErrorLabel("File upload error:" + fileName);
+    }
+  }
+
+  private Node createImageContent(Path filePath, Message message) {
+    try {
+      File imageFile = filePath.toFile();
+      if (!imageFile.exists()) {
+        return createErrorLabel("Image not found");
+      }
+
+      ImageView imageView = getImageView(imageFile, true);
+
+      VBox container = new VBox(5);
+      container.getChildren().add(imageView);
+      container.getChildren().add(createTimestampLabel(message));
+
+      return container;
+
+    } catch (Exception e) {
+      return createErrorLabel("Error loading image");
+    }
+  }
+
+  private Node createGifContent(Path filePath, Message message) {
+    try {
+      File gifFile = filePath.toFile();
+      if (!gifFile.exists()) {
+        return createErrorLabel("GIF not found");
+      }
+
+      ImageView gifView = getImageView(gifFile, false);
+
+      VBox container = new VBox(5);
+      container.getChildren().add(gifView);
+      container.getChildren().add(createTimestampLabel(message));
+
+      return container;
+
+    } catch (Exception e) {
+      return createErrorLabel("Error loading GIF");
+    }
+  }
+
+  private ImageView getImageView(File gifFile, boolean b) {
+    Image gifImage = new Image(gifFile.toURI().toString());
+    ImageView gifView = new ImageView(gifImage);
+
+    double maxWidth = 200;
+    double maxHeight = 200;
+
+    if (gifImage.getWidth() > maxWidth || gifImage.getHeight() > maxHeight) {
+      gifView.setFitWidth(maxWidth);
+      gifView.setFitHeight(maxHeight);
+      gifView.setPreserveRatio(true);
+    }
+
+    gifView.setSmooth(true);
+    gifView.setCache(b);
+
+    gifView.setOnMouseClicked(e -> openImageInFullSize(gifImage));
+    gifView.setCursor(Cursor.HAND);
+    return gifView;
+  }
+
+  private Node createVideoContent(Path filePath, Message message) {
+    try {
+      File videoFile = filePath.toFile();
+      if (!videoFile.exists()) {
+        return createErrorLabel("Video not found");
+      }
+
+      Media media = new Media(videoFile.toURI().toString());
+      MediaPlayer mediaPlayer = new MediaPlayer(media);
+      MediaView mediaView = new MediaView(mediaPlayer);
+
+      mediaView.setFitWidth(250);
+      mediaView.setFitHeight(200);
+      mediaView.setPreserveRatio(true);
+
+      mediaPlayer.setOnError(() -> {
+        System.err.println("Media Player Error: " + mediaPlayer.getError());
+      });
+
+      media.setOnError(() -> {
+        System.err.println("Media Error: " + media.getError());
+      });
+
+      mediaPlayer.setOnReady(() -> {
+        System.out.println("Media ready. Duration: " + mediaPlayer.getTotalDuration());
+      });
+
+      HBox controls = createVideoControls(mediaPlayer);
+
+      StackPane videoContainer = new StackPane();
+      videoContainer.setPrefSize(250, 200);
+      videoContainer.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #ccc;");
+
+      Label videoPlaceholder = new Label("📹 " + filePath.getFileName().toString());
+      videoPlaceholder.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+
+      videoContainer.getChildren().addAll(videoPlaceholder, mediaView);
+
+      VBox container = new VBox(5);
+      container.getChildren().addAll(videoContainer, controls, createTimestampLabel(message));
+
+      return container;
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      return createErrorLabel("Error loading video: " + e.getMessage());
+    }
+  }
+
+  private Node createAudioContent(Path filePath, Message message) {
+    try {
+      File audioFile = filePath.toFile();
+      if (!audioFile.exists()) {
+        return createErrorLabel("Audio not found");
+      }
+
+      Media media = new Media(audioFile.toURI().toString());
+      MediaPlayer mediaPlayer = new MediaPlayer(media);
+
+      HBox audioInterface = createAudioInterface(mediaPlayer, filePath.getFileName().toString());
+
+      VBox container = new VBox(5);
+      container.getChildren().add(audioInterface);
+      container.getChildren().add(createTimestampLabel(message));
+
+      return container;
+
+    } catch (Exception e) {
+      return createErrorLabel("Error loading audio");
+    }
+  }
+
+  private HBox createVideoControls(MediaPlayer mediaPlayer) {
+    Button playButton = new Button("▶");
+    Button pauseButton = new Button("⏸");
+    Button stopButton = new Button("⏹");
+
+    pauseButton.setVisible(false);
+
+    Slider progressSlider = new Slider();
+    progressSlider.setMin(0.0);
+    progressSlider.setValue(0.0);
+    progressSlider.setMaxWidth(150);
+
+    Label timeLabel = new Label("00:00 / 00:00");
+    timeLabel.setMinWidth(80);
+    timeLabel.setStyle("-fx-font-size: 10px;");
+
+    playButton.setOnAction(e -> mediaPlayer.play());
+    pauseButton.setOnAction(e -> mediaPlayer.pause());
+    stopButton.setOnAction(e -> {
+      mediaPlayer.stop();
+      progressSlider.setValue(0.0);
+    });
+
+    pauseButton.setOnAction(e -> {
+      try {
+        mediaPlayer.pause();
+        playButton.setVisible(true);
+        pauseButton.setVisible(false);
+      } catch (Exception ex) {
+        log.error("Pause Error: {}", ex.getMessage());
+      }
+    });
+
+    stopButton.setOnAction(e -> {
+      try {
+        mediaPlayer.stop();
+        progressSlider.setValue(0.0);
+        playButton.setVisible(true);
+        pauseButton.setVisible(false);
+        timeLabel.setText("00:00 / 00:00");
+      } catch (Exception ex) {
+        log.error("Stop error: {}", ex.getMessage());
+      }
+    });
+
+    mediaPlayer.statusProperty().addListener((obs, oldStatus, newStatus) -> {
+      log.error("Player status changed: {}", newStatus);
+      switch (newStatus) {
+        case PLAYING:
+          playButton.setVisible(false);
+          pauseButton.setVisible(true);
+          break;
+        case PAUSED:
+        case STOPPED:
+        case READY:
+          playButton.setVisible(true);
+          pauseButton.setVisible(false);
+          break;
+        default:
+          break;
+      }
+    });
+
+    mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
+      if (!progressSlider.isValueChanging() && newTime != null) {
+        try {
+          Duration totalDuration = mediaPlayer.getTotalDuration();
+          if (totalDuration != null && totalDuration.greaterThan(Duration.ZERO)) {
+            progressSlider.setMax(totalDuration.toSeconds());
+            progressSlider.setValue(newTime.toSeconds());
+
+            String current = formatDuration(newTime);
+            String total = formatDuration(totalDuration);
+            timeLabel.setText(current + " / " + total);
+          }
+        } catch (Exception ex) {
+          log.error("Error updating progress: {}", ex.getMessage());
+        }
+      }
+    });
+
+    progressSlider.setOnMouseReleased(e -> {
+      try {
+        if (mediaPlayer.getTotalDuration() != null) {
+          mediaPlayer.seek(Duration.seconds(progressSlider.getValue()));
+        }
+      } catch (Exception ex) {
+        log.error("Rewind error: {}", ex.getMessage());
+      }
+    });
+
+    mediaPlayer.setOnEndOfMedia(() -> {
+      playButton.setVisible(false);
+      pauseButton.setVisible(false);
+      progressSlider.setValue(0.0);
+    });
+
+    HBox controls = new HBox(5);
+    controls.getChildren().addAll(playButton, pauseButton, stopButton, progressSlider, timeLabel);
+    controls.setAlignment(Pos.CENTER_LEFT);
+
+    return controls;
+  }
+
+  private HBox createAudioInterface(MediaPlayer mediaPlayer, String fileName) {
+    Button playButton = new Button("▶");
+    Button pauseButton = new Button("⏸");
+
+    Label fileLabel = new Label("🎵 " + fileName);
+    fileLabel.setMaxWidth(150);
+    fileLabel.setStyle("-fx-text-fill: #333; -fx-font-size: 12px;");
+
+    Slider progressSlider = new Slider();
+    progressSlider.setMin(0.0);
+    progressSlider.setValue(0.0);
+    progressSlider.setMaxWidth(100);
+
+    Label timeLabel = new Label("00:00");
+
+    playButton.setOnAction(e -> {
+      mediaPlayer.play();
+      playButton.setVisible(false);
+      pauseButton.setVisible(true);
+    });
+
+    pauseButton.setOnAction(e -> {
+      mediaPlayer.pause();
+      playButton.setVisible(true);
+      pauseButton.setVisible(false);
+    });
+
+    pauseButton.setVisible(false);
+
+    mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
+      if (!progressSlider.isValueChanging()) {
+        Duration totalDuration = mediaPlayer.getTotalDuration();
+        if (totalDuration != null && totalDuration.greaterThan(Duration.ZERO)) {
+          progressSlider.setMax(totalDuration.toSeconds());
+          progressSlider.setValue(newTime.toSeconds());
+          timeLabel.setText(formatDuration(newTime));
+        }
+      }
+    });
+
+    mediaPlayer.setOnEndOfMedia(() -> {
+      progressSlider.setValue(0.0);
+      mediaPlayer.seek(Duration.ZERO);
+      mediaPlayer.pause();
+      playButton.setVisible(true);
+      pauseButton.setVisible(false);
+    });
+
+    progressSlider.setOnMouseReleased(e -> {
+      mediaPlayer.seek(Duration.seconds(progressSlider.getValue()));
+    });
+
+    VBox playerBox = new VBox(3);
+    playerBox.getChildren().add(fileLabel);
+
+    HBox controlsBox = new HBox(5);
+    controlsBox.getChildren().addAll(playButton, pauseButton, progressSlider, timeLabel);
+    controlsBox.setAlignment(Pos.CENTER_LEFT);
+
+    playerBox.getChildren().add(controlsBox);
+
+    HBox container = new HBox();
+    container.getChildren().add(playerBox);
+    container.setAlignment(Pos.CENTER_LEFT);
+
+    return container;
+  }
+
+  private Label createTimestampLabel(Message message) {
+    Label timestampLabel = new Label(
+            Instant.ofEpochMilli(message.getTimestamp()).toString()
+    );
+    timestampLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+    return timestampLabel;
+  }
+
+  private Label createErrorLabel(String errorMessage) {
+    Label errorLabel = new Label(errorMessage);
+    errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+    return errorLabel;
+  }
+
+  private Node createFileLink(Message message, Path filePath) {
+    return getHyperlink(message, filePath);
+  }
+
+  private String getFileExtension(String fileName) {
+    int lastIndexOf = fileName.lastIndexOf(".");
+    if (lastIndexOf == -1) {
+      return "";
+    }
+    return fileName.substring(lastIndexOf + 1);
+  }
+
+  private String formatDuration(Duration duration) {
+    int minutes = (int) duration.toMinutes();
+    int seconds = (int) duration.toSeconds() % 60;
+    return String.format("%02d:%02d", minutes, seconds);
+  }
+
+  private void openImageInFullSize(Image image) {
+    Stage imageStage = new Stage();
+    imageStage.setTitle("View image");
+
+    ImageView fullImageView = new ImageView(image);
+    fullImageView.setPreserveRatio(true);
+
+    ScrollPane scrollPane = new ScrollPane(fullImageView);
+    scrollPane.setFitToWidth(true);
+    scrollPane.setFitToHeight(true);
+
+    Scene scene = new Scene(scrollPane, 600, 400);
+    imageStage.setScene(scene);
+    imageStage.show();
   }
 
   private static Hyperlink getHyperlink(Message message, Path filePath) {
@@ -655,7 +1044,6 @@ public class MainChatController {
     });
     return folderLink;
   }
-
 
   private boolean sendInitRoomRequest(String toUser, String roomId) {
     String token = RoomTokenEncoder.encode(
@@ -685,7 +1073,6 @@ public class MainChatController {
 
     return accepted;
   }
-
 
   @FXML
   private void onSendMessage() {
