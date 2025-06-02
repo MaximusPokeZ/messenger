@@ -668,7 +668,7 @@ public class MainChatController {
     ));
     label.setWrapText(true);
     label.setMaxWidth(300);
-    label.setStyle("-fx-padding: 10; -fx-background-radius: 10;");
+    label.setStyle("-fx-padding: 10; -fx-background-radius: 10; -fx-text-fill: #000000;");// тут можно убрать цвет текста
 
     HBox bubble = new HBox(label);
     bubble.setPadding(new Insets(5));
@@ -889,6 +889,26 @@ public class MainChatController {
       dialog.setTitle("Exit chat");
       dialog.setHeaderText("You are the chat owner. Select an action:");
 
+
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
+
+      dialog.getDialogPane().getStylesheets().add(stylesPath);
+
+
+      Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+      okButton.getStyleClass().add("primary-button");
+
+      Button cancelButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.CANCEL);
+      cancelButton.getStyleClass().add("secondary-button");
+
+
+      Node comboNode = dialog.getDialogPane().lookup(".combo-box");
+      if (comboNode instanceof ComboBox<?>) {
+        @SuppressWarnings("unchecked")
+        ComboBox<String> comboBox = (ComboBox<String>) comboNode;
+        comboBox.getStyleClass().add("input-field");
+      }
+
       Optional<String> result = dialog.showAndWait();
       result.ifPresent(choice -> {
         switch (choice) {
@@ -933,10 +953,24 @@ public class MainChatController {
         }
       });
     } else {
+
       Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
       confirm.setTitle("Exit chat");
       confirm.setHeaderText("Are you sure you want to leave the chat?");
       confirm.setContentText("All messages will be deleted");
+
+
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
+
+      confirm.getDialogPane().getStylesheets().add(stylesPath);
+
+
+      Button okButton = (Button) confirm.getDialogPane().lookupButton(ButtonType.OK);
+      okButton.setText("Yes");
+      okButton.getStyleClass().add("primary-button");
+
+      Button cancelButton = (Button) confirm.getDialogPane().lookupButton(ButtonType.CANCEL);
+      cancelButton.getStyleClass().add("secondary-button");
 
       Optional<ButtonType> buttonType = confirm.showAndWait();
       if (buttonType.isPresent() && buttonType.get() == ButtonType.OK) {

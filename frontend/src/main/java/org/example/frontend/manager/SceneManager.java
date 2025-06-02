@@ -20,20 +20,21 @@ public class SceneManager {
   private static Stage currentStage;
 
   public static void switchToLoginScene() throws IOException {
-    switchScene("/view/login.fxml", "Super-Secure-Chat - Login", 700, 700);
+    switchScene("/view/login_1.fxml", "Super-Secure-Chat - Login", 440, 560);
 
-    currentStage.setResizable(true);
+    currentStage.setResizable(false);
     ImageView view = new ImageView();
     Image image = new Image(Objects.requireNonNull(SceneManager.class.getResourceAsStream("/images/logo.png")));
     view.setImage(image);
   }
 
   public static void switchToRegisterScene() throws IOException {
-    switchScene("/view/register.fxml", "Super-Secure-Chat - Register", 700, 700);
+    switchScene("/view/register_1.fxml", "Super-Secure-Chat - Register", 440, 560);
+    currentStage.setResizable(false);
   }
 
   public static void switchToMainScene() throws IOException {
-    switchScene("/view/main-chat.fxml", "Super-Secure-Chat - Main", 1100, 700);
+    switchScene("/view/main_chat_1.fxml", "Super-Secure-Chat - Main", 1100, 700);
   }
 
   private static void switchScene(String fxmlPath, String title, double width , double height) throws IOException {
@@ -44,7 +45,7 @@ public class SceneManager {
     FXMLLoader fxmlLoader = new FXMLLoader(SceneManager.class.getResource(fxmlPath));
     Scene scene = new Scene(fxmlLoader.load(), width, height);
 
-    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
     scene.getStylesheets().add(stylesPath);
 
     currentStage.setTitle(title);
