@@ -17,10 +17,9 @@
             fx:controller="org.example.frontend.controller.MainChatController"
             styleClass="root">
 
-    <!-- =============== TOP BAR =============== -->
     <top>
         <VBox>
-            <!-- Заголовок и кнопка выхода -->
+
             <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="top-bar">
                 <padding>
                     <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
@@ -36,7 +35,7 @@
                         text="Exit" styleClass="secondary-button"/>
             </HBox>
 
-            <!-- Поле поиска пользователей -->
+
             <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="search-bar">
                 <padding>
                     <Insets bottom="10.0" left="15.0" right="15.0" top="5.0"/>
@@ -53,11 +52,11 @@
         </VBox>
     </top>
 
-    <!-- =============== CENTER (CHAT AREA) =============== -->
+
     <center>
         <HBox>
 
-            <!-- ========== СПИСОК ЧАТОВ ========== -->
+
             <VBox styleClass="chat-list-container">
                 <Label text="Your chats" styleClass="subheader-label">
                     <font>
@@ -77,10 +76,9 @@
                 </ListView>
             </VBox>
 
-            <!-- ========== СООБЩЕНИЯ В ЧАТЕ ========== -->
+
             <VBox HBox.hgrow="ALWAYS" styleClass="messages-container">
 
-                <!-- Название чата и кнопки -->
                 <HBox alignment="CENTER_LEFT" spacing="20" styleClass="chat-header">
                     <padding>
                         <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
@@ -132,7 +130,7 @@
                             styleClass="secondary-button"/>
                 </HBox>
 
-                <!-- ScrollPane с сообщениями -->
+
                 <ScrollPane fx:id="messagesScrollPane"
                             fitToWidth="true"
                             styleClass="messages-scrollpane"
@@ -147,7 +145,7 @@
                     </VBox>
                 </ScrollPane>
 
-                <!-- Поле ввода сообщения и кнопки отправки -->
+
                 <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="message-input-bar">
                     <padding>
                         <Insets bottom="15.0" left="15.0" right="15.0" top="10.0"/>
@@ -171,7 +169,6 @@
                 </HBox>
             </VBox>
 
-            <!-- ========== РЕЗУЛЬТАТЫ ПОИСКА ========== -->
             <VBox fx:id="searchResultsPanel"
                   visible="false"
                   styleClass="search-results-panel">

@@ -20,7 +20,7 @@ import java.util.Base64;
 @Slf4j
 public class ContextFactory {
     private ContextFactory() {}
-    public static Context getContext(ChatRoom room) {
+    public static Context getContext(ChatRoom room) throws Exception {
         if (room == null) {
             throw new IllegalArgumentException("Chat room cannot be null!!!!");
         }

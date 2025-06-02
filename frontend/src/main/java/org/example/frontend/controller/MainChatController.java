@@ -1,9 +1,10 @@
 package org.example.frontend.controller;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -377,7 +378,15 @@ public class MainChatController {
       }
     }
 
-    Context context = ContextFactory.getContext(room);
+    Context context;
+    try{
+      context = ContextFactory.getContext(room);
+    } catch (Exception e) {
+      log.info("there no key for cipher");
+      return;
+    }
+
+
     try {
       String fileName = msg.getFileName();
       Path dir = Paths.get("downloads");
@@ -505,16 +514,22 @@ public class MainChatController {
       }
     }
 
-    Context contextTextMessage = ContextFactory.getContext(room);
+    Context context;
+    try{
+      context = ContextFactory.getContext(room);
+    } catch (Exception e) {
+      log.info("there no key for cipher");
+      return;
+    }
 
     byte[] encodedData = Base64.getDecoder().decode(msg.getText());
-    Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
+    Pair<byte[], byte[]> decrypted = context.encryptDecryptInner(encodedData, null, false);
 
     Message message = Message.builder()
             .roomId(roomId)
             .sender(msg.getFromUserName())
             .timestamp(msg.getDateTime())
-            .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
+            .content(new String(context.removePadding(decrypted.getKey())))
             .build();
 
     DaoManager.getMessageDao().insert(message);
@@ -528,15 +543,25 @@ public class MainChatController {
 
   @FXML
   private void onLogoutClick() {
-    JwtStorage.setUsername(null);
-    JwtStorage.setToken(null);
     try {
-      GrpcClient.resetInstance();
-      DBManager.resetInstance();
-      SceneManager.switchToLoginScene();
+      JwtStorage.setUsername(null);
+      JwtStorage.setToken(null);
+
+        GrpcClient.resetInstance();
+        DBManager.resetInstance();
+        SceneManager.switchToLoginScene();
+
     } catch (IOException e) {
       throw new RuntimeException("Failed to log out: " + e);
+    } catch (StatusRuntimeException e) {
+      log.info("HERE");
+      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
+        System.err.println("Сервер недоступен: " + e.getMessage());
+      }
+    } catch (Exception e) {
+      log.info("io.grpc disabled");
     }
+
   }
 
   @FXML
@@ -723,11 +748,17 @@ public class MainChatController {
 
     ChatRoom room = currentChat;
 
-    Context contextSendTextMessage = ContextFactory.getContext(room);
+    Context context;
+    try{
+      context = ContextFactory.getContext(room);
+    } catch (Exception e) {
+      log.info("there no key for cipher");
+      return;
+    }
 
-    byte[] afterPadding = contextSendTextMessage.addPadding(text.getBytes());
+    byte[] afterPadding = context.addPadding(text.getBytes());
 
-    Pair<byte[], byte[]> encrypted = contextSendTextMessage.encryptDecryptInner(afterPadding, null, true);
+    Pair<byte[], byte[]> encrypted = context.encryptDecryptInner(afterPadding, null, true);
 
     String cipherText = Base64.getEncoder().encodeToString(encrypted.getKey());
 
@@ -890,7 +921,7 @@ public class MainChatController {
       dialog.setHeaderText("You are the chat owner. Select an action:");
 
 
-      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
 
       dialog.getDialogPane().getStylesheets().add(stylesPath);
 
@@ -960,7 +991,7 @@ public class MainChatController {
       confirm.setContentText("All messages will be deleted");
 
 
-      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
 
       confirm.getDialogPane().getStylesheets().add(stylesPath);
 

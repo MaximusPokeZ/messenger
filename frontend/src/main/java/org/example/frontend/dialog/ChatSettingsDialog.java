@@ -78,7 +78,7 @@ public class ChatSettingsDialog extends Dialog<ChatSetting> {
 
     getDialogPane().setContent(grid);
 
-    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
+    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
 
 
     getDialogPane().getStylesheets().add(stylesPath);
