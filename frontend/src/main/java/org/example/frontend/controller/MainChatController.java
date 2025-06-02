@@ -174,9 +174,7 @@ public class MainChatController {
               room.getKeyBitLength()
       );
 
-      String g = "5";
-      String p = "23";
-      DiffieHellman dh = new DiffieHellman(g, p);
+      DiffieHellman dh = new DiffieHellman();
       String publicComponent = dh.getPublicComponent().toString();
 
       log.info("Start DH for room id {}", roomId);
@@ -244,8 +242,6 @@ public class MainChatController {
 
     Optional<ChatRoom> existing = DaoManager.getChatRoomDao().findByRoomId(roomId);
 
-    String g = "5";
-    String p = "23";
     if (existing.isEmpty()) {
       ChatRoom room = ChatRoom.builder()
               .roomId(roomId)
@@ -262,7 +258,8 @@ public class MainChatController {
       chatRooms.add(room);
       updateChatListUI();
 
-      DiffieHellman dh = new DiffieHellman(g, p);
+
+      DiffieHellman dh = new DiffieHellman();
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       dh.setPublicComponentOther(msg.getPublicExponent());
       DiffieHellmanManager.put(roomId, dh);
@@ -276,7 +273,7 @@ public class MainChatController {
     } else {
       DiffieHellman dhc = DiffieHellmanManager.get(roomId);
       if (dhc == null) {
-        DiffieHellman dh = new DiffieHellman(g, p);
+        DiffieHellman dh = new DiffieHellman();
         dh.getKey(new BigInteger(msg.getPublicExponent()));
         dh.setPublicComponentOther(msg.getPublicExponent());
         DiffieHellmanManager.put(roomId, dh);
@@ -367,11 +364,9 @@ public class MainChatController {
       }
     }
 
-    String g = "5";
-    String p = "23";
     DiffieHellman DH = DiffieHellmanManager.get(roomId);
     if (DH == null) {
-      DiffieHellman dh = new DiffieHellman(g, p);
+      DiffieHellman dh = new DiffieHellman();
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       dh.setPublicComponentOther(msg.getPublicExponent());
       DiffieHellmanManager.put(room.getRoomId(), dh);
@@ -497,11 +492,9 @@ public class MainChatController {
       }
     }
 
-    String g = "5";
-    String p = "23";
     DiffieHellman DH = DiffieHellmanManager.get(roomId);
     if (DH == null) {
-      DiffieHellman dh = new DiffieHellman(g, p);
+      DiffieHellman dh = new DiffieHellman();
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       dh.setPublicComponentOther(msg.getPublicExponent());
       DiffieHellmanManager.put(room.getRoomId(), dh);
@@ -702,10 +695,8 @@ public class MainChatController {
             currentChat.getKeyBitLength()
     );
 
-    String g = "5";
-    String p = "23";
 
-    DiffieHellman dh = new DiffieHellman(g, p);
+    DiffieHellman dh = new DiffieHellman();
     String publicComponent = dh.getPublicComponent().toString();
 
     DiffieHellmanManager.put(roomId, dh);
@@ -761,10 +752,8 @@ public class MainChatController {
     log.info("Other User: {}", room.getOtherUser());
     log.info("Current room User: {}", room.getOwner());
 
-    String g = "5";
-    String p = "23";
     if (DiffieHellmanManager.get(room.getRoomId()) == null) {
-      DiffieHellman dh = new DiffieHellman(g, p);
+      DiffieHellman dh = new DiffieHellman();
       DiffieHellmanManager.put(room.getRoomId(), dh);
     }
 

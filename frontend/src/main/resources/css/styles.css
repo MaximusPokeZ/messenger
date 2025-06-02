@@ -1,51 +1,195 @@
 
-.root {
-    -fx-background-color: #f5f5f5;
-    -fx-font-family: "Segoe UI", "Helvetica", "Arial", sans-serif;
-}
+/*.root {*/
+/*    -fx-background-color: #f5f5f5;*/
+/*    -fx-font-family: "Segoe UI", "Helvetica", "Arial", sans-serif;*/
+/*}*/
 
-.login-container {
+/*.login-container {*/
 
-}
+/*}*/
 
-.login-title {
+/*.login-title {*/
 
-}
+/*}*/
 
-.login-subtitle {
-}
+/*.login-subtitle {*/
+/*}*/
 
-.form-container {
-}
+/*.form-container {*/
+/*}*/
 
-.input-field {
-}
+/*.input-field {*/
+/*}*/
 
-.input-field:focused {
-}
+/*.input-field:focused {*/
+/*}*/
 
-/* Кнопки */
-.primary-button {
-}
+/*!* Кнопки *!*/
+/*.primary-button {*/
+/*    -fx-background-color: #4CAF50;*/
+/*    -fx-text-fill: white;*/
+/*    -fx-font-size: 14px;*/
+/*    -fx-padding: 8 16;*/
+/*    -fx-background-radius: 8;*/
+/*}*/
 
-.primary-button:hover {
-}
+/*.primary-button:hover {*/
+/*}*/
 
-.primary-button:pressed {
-}
+/*.primary-button:pressed {*/
+/*}*/
 
-.primary-button:disabled {
-}
+/*.primary-button:disabled {*/
+/*}*/
 
-.hyperlink {
-}
+/*.hyperlink {*/
+/*}*/
 
-.hyperlink:hover {
-}
+/*.hyperlink:hover {*/
+/*}*/
 
-.error-label {
-}
+/*.error-label {*/
+/*}*/
 
-.label {
+/*.label {*/
 
-}
+/*}*/
+
+
+/*!* Общие настройки корневого контейнера *!*/
+/*.root {*/
+/*    -fx-background-color: linear-gradient(to bottom right, #e0eafc, #cfdef3);*/
+/*    -fx-font-family: "Segoe UI", "Helvetica", "Arial", sans-serif;*/
+/*    -fx-font-size: 14px;*/
+/*}*/
+
+/*!* ============================= *!*/
+/*!*        БЛОК ЛОГИНА            *!*/
+/*!* ============================= *!*/
+
+/*!* Контейнер всей формы логина: центрирует содержимое и задаёт фон *!*/
+/*.login-container {*/
+/*    -fx-alignment: center;*/
+/*    -fx-padding: 60 40 60 40;*/
+/*    -fx-max-width: 400px;*/
+/*    -fx-background-color: white;*/
+/*    -fx-background-radius: 12;*/
+/*    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 15, 0, 0, 4);*/
+/*}*/
+
+/*!* Заголовок формы логина *!*/
+/*.login-title {*/
+/*    -fx-text-fill: #333333;*/
+/*    -fx-font-size: 24px;*/
+/*    -fx-font-weight: bold;*/
+/*    -fx-padding: 0 0 10 0;*/
+/*}*/
+
+/*!* Подзаголовок (описание) *!*/
+/*.login-subtitle {*/
+/*    -fx-text-fill: #666666;*/
+/*    -fx-font-size: 16px;*/
+/*    -fx-padding: 0 0 20 0;*/
+/*}*/
+
+/*!* Общий контейнер для полей ввода *!*/
+/*.form-container {*/
+/*    -fx-spacing: 12;*/
+/*}*/
+
+/*!* Поле ввода (TextField, PasswordField и т.п.) *!*/
+/*.input-field {*/
+/*    -fx-background-color: #f0f0f0;*/
+/*    -fx-background-radius: 6;*/
+/*    -fx-padding: 10 12 10 12;*/
+/*    -fx-border-color: transparent;*/
+/*    -fx-border-radius: 6;*/
+/*    -fx-prompt-text-fill: #999999;*/
+/*    -fx-text-fill: #333333;*/
+/*    -fx-pref-height: 40px;*/
+/*    -fx-font-size: 14px;*/
+/*}*/
+
+/*!* Когда фокус у поля ввода *!*/
+/*.input-field:focused {*/
+/*    -fx-background-color: white;*/
+/*    -fx-border-color: #4CAF50;*/
+/*    -fx-border-width: 2;*/
+/*}*/
+
+/*!* ============================= *!*/
+/*!*         КНОПКИ                *!*/
+/*!* ============================= *!*/
+
+/*!* Основная кнопка *!*/
+/*.primary-button {*/
+/*    -fx-background-color: #4CAF50;*/
+/*    -fx-text-fill: white;*/
+/*    -fx-font-size: 15px;*/
+/*    -fx-font-weight: bold;*/
+/*    -fx-padding: 10 20 10 20;*/
+/*    -fx-background-radius: 8;*/
+/*    -fx-cursor: hand;*/
+/*    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);*/
+/*    -fx-transition: all 0.2s ease;*/
+/*}*/
+
+/*!* При наведении *!*/
+/*.primary-button:hover {*/
+/*    -fx-background-color: #45a049;*/
+/*    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 10, 0, 0, 4);*/
+/*}*/
+
+/*!* При нажатии *!*/
+/*.primary-button:pressed {*/
+/*    -fx-background-color: #3d8b40;*/
+/*    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 1);*/
+/*    -fx-translate-y: 1px;*/
+/*}*/
+
+/*!* Отключённая кнопка *!*/
+/*.primary-button:disabled {*/
+/*    -fx-background-color: #a5d6a7;*/
+/*    -fx-text-fill: #eeeeee;*/
+/*    -fx-opacity: 0.8;*/
+/*    -fx-cursor: default;*/
+/*}*/
+
+/*!* ============================= *!*/
+/*!*      ГИПЕРССЫЛКИ / ССЫЛКИ      *!*/
+/*!* ============================= *!*/
+
+/*!* Обычная гиперссылка *!*/
+/*.hyperlink {*/
+/*    -fx-text-fill: #4CAF50;*/
+/*    -fx-font-size: 13px;*/
+/*    -fx-underline: false;*/
+/*    -fx-cursor: hand;*/
+/*}*/
+
+/*!* При наведении на гиперссылку *!*/
+/*.hyperlink:hover {*/
+/*    -fx-text-fill: #388e3c;*/
+/*    -fx-underline: true;*/
+/*}*/
+
+/*!* ============================= *!*/
+/*!*       ОШИБОЧНЫЕ МЕТКИ         *!*/
+/*!* ============================= *!*/
+
+/*.error-label {*/
+/*    -fx-text-fill: #d32f2f;*/
+/*    -fx-font-size: 12px;*/
+/*    -fx-padding: 4 0 0 0;*/
+/*}*/
+
+/*!* ============================= *!*/
+/*!*            МЕТКИ              *!*/
+/*!* ============================= *!*/
+
+/*.label {*/
+/*    -fx-text-fill: #333333;*/
+/*    -fx-font-size: 14px;*/
+/*}*/
+
+/*!* Дополнительные вспомогательные стили можно добавить ниже *!*/
