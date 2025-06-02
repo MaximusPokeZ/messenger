@@ -9,6 +9,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -31,6 +36,7 @@ import org.example.frontend.utils.MessageUtils;
 import org.example.frontend.utils.RoomTokenEncoder;
 import org.example.shared.ChatProto;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,6 +47,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -294,95 +301,19 @@ public class MainChatController {
   }
 
   private void handleFileMessage(ChatProto.ChatMessage msg) {
-    RoomTokenEncoder.DecodedRoomToken decodedToken;
-    try {
-      decodedToken = RoomTokenEncoder.decode(msg.getToken());
-    } catch (Exception e) {
-      log.error("Failed to decode token: {}", msg.getToken(), e);
-      return;
-    }
-
-    String roomId = decodedToken.guid();
-    Optional<ChatRoom> optionalRoom = DaoManager.getChatRoomDao().findByRoomId(roomId);
-
-    if (optionalRoom.isEmpty()) {
-      log.warn("No chat room found for message: {}", msg);
-      return;
-    }
+    Optional<ChatRoom> optionalRoom = prepareRoomAndDH(msg);
+    if (optionalRoom.isEmpty()) return;
 
     ChatRoom room = optionalRoom.get();
-
-    boolean changed = !room.getCipher().equals(decodedToken.cipher()) ||
-            !room.getCipherMode().equals(decodedToken.cipherMode()) ||
-            !room.getPaddingMode().equals(decodedToken.paddingMode()) ||
-            !room.getIv().equals(decodedToken.IV()) ||
-            !room.getKeyBitLength().equals(decodedToken.keyBitLength());
-
-    if (changed) {
-      log.info("Room settings changed for room '{}'. Updating...", roomId);
-      log.info("Cipher: {}", decodedToken.cipher());
-      log.info("Cipher mode: {}", decodedToken.cipherMode());
-      log.info("Padding mode: {}", decodedToken.paddingMode());
-      log.info("IV: {}", decodedToken.IV());
-
-      log.info("Cipher in room: {}", room.getCipher());
-      log.info("Cipher mode in room: {}", room.getCipherMode());
-      log.info("Padding mode in room: {}", room.getPaddingMode());
-      log.info("IV in room: {}", room.getIv());
-
-
-      room.setCipher(decodedToken.cipher());
-      room.setCipherMode(decodedToken.cipherMode());
-      room.setPaddingMode(decodedToken.paddingMode());
-      room.setIv(decodedToken.IV());
-      room.setKeyBitLength(decodedToken.keyBitLength());
-
-      log.info("Cipher in room after: {}", room.getCipher());
-      log.info("Cipher mode in room after: {}", room.getCipherMode());
-      log.info("Padding mode in room after: {}", room.getPaddingMode());
-      log.info("IV in room after: {}", room.getIv());
-      log.info("KeyBitLength after: {}", decodedToken.keyBitLength());
-
-
-      DaoManager.getChatRoomDao().update(room);
-
-      for (int i = 0; i < chatRooms.size(); i++) {
-        if (chatRooms.get(i).getRoomId().equals(roomId)) {
-          chatRooms.set(i, room);
-          break;
-        }
-      }
-
-      if (currentChat != null && currentChat.getRoomId().equals(roomId)) {
-        currentChat = room;
-        cipherLabel.setText("Cipher: " + room.getCipher());
-        modeLabel.setText("Mode: " + room.getCipherMode());
-        paddingLabel.setText("Padding: " + room.getPaddingMode());
-        ivLabel.setText("IV: " + room.getIv());
-        keyLengthLabel.setText("Key length bits: " + room.getKeyBitLength());
-        log.info("Changed room settings for {}", roomId);
-      }
-    }
-
-    DiffieHellman DH = DiffieHellmanManager.get(roomId);
-    if (DH == null) {
-      DiffieHellman dh = new DiffieHellman();
-      dh.getKey(new BigInteger(msg.getPublicExponent()));
-      dh.setPublicComponentOther(msg.getPublicExponent());
-      DiffieHellmanManager.put(room.getRoomId(), dh);
-    } else {
-      if (DH.getSharedSecret() == null) {
-        DH.getKey(new BigInteger(msg.getPublicExponent()));
-        DH.setPublicComponentOther(msg.getPublicExponent());
-      }
-    }
 
     Context context = ContextFactory.getContext(room);
     try {
       String fileName = msg.getFileName();
-      Path dir = Paths.get("downloads");
-      Files.createDirectories(dir);
-      Path out = dir.resolve(fileName);
+
+      Path downloadsPath = Paths.get(System.getProperty("user.home"), "Downloads", "SecureChat_" + currentUserName);
+      Files.createDirectories(downloadsPath);
+
+      Path out = downloadsPath.resolve(fileName);
 
       FileTransferState state = fileTransfers.computeIfAbsent(fileName, fn -> {
         try {
@@ -407,13 +338,31 @@ public class MainChatController {
         state.outputStream.write(unpadded);
         state.outputStream.close();
         fileTransfers.remove(fileName);
-        log.info("[Файл готов] {}", fileName); //TODO тут можно уже отображать в чат
+        log.info("[The file is ready] {}", fileName);
+
+        Message message = Message.builder()
+                .roomId(room.getRoomId())
+                .sender(msg.getFromUserName())
+                .timestamp(msg.getDateTime())
+                .content("[File] " + fileName)
+                .filePath(out.toString())
+                .build();
+
+        DaoManager.getMessageDao().insert(message);
+
+        if (currentChat != null && currentChat.getRoomId().equals(room.getRoomId())) {
+          messagesContainer.getChildren().add(createMessageBubble(message));
+          messagesScrollPane.layout();
+          messagesScrollPane.setVvalue(1.0);
+        }
+
       } else {
         state.outputStream.write(decrypted.getKey());
         state.previous = decrypted.getValue();
       }
     } catch (Exception e) {
-      log.error("Ошибка обработки файла {}", msg.getFileName(), e);
+      log.error("File processing error {}", msg.getFileName(), e);
+      showAlert(Alert.AlertType.ERROR, "File processing error");
       FileTransferState failedState = fileTransfers.remove(msg.getFileName());
       if (failedState != null) {
         try { failedState.outputStream.close(); } catch (IOException ignored) {}
@@ -422,20 +371,46 @@ public class MainChatController {
   }
 
   private void handleTextMessage(ChatProto.ChatMessage msg) {
+    Optional<ChatRoom> optionalRoom = prepareRoomAndDH(msg);
+    if (optionalRoom.isEmpty()) return;
+
+    ChatRoom room = optionalRoom.get();
+
+    Context contextTextMessage = ContextFactory.getContext(room);
+
+    byte[] encodedData = Base64.getDecoder().decode(msg.getText());
+    Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
+
+    Message message = Message.builder()
+            .roomId(room.getRoomId())
+            .sender(msg.getFromUserName())
+            .timestamp(msg.getDateTime())
+            .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
+            .build();
+
+    DaoManager.getMessageDao().insert(message);
+
+    if (currentChat != null && currentChat.getRoomId().equals(room.getRoomId())) {
+      messagesContainer.getChildren().add(createMessageBubble(message));
+      messagesScrollPane.layout();
+      messagesScrollPane.setVvalue(1.0);
+    }
+  }
+
+  private Optional<ChatRoom> prepareRoomAndDH(ChatProto.ChatMessage msg) {
     RoomTokenEncoder.DecodedRoomToken decodedToken;
     try {
       decodedToken = RoomTokenEncoder.decode(msg.getToken());
     } catch (Exception e) {
       log.error("Failed to decode token: {}", msg.getToken(), e);
-      return;
+      return Optional.empty();
     }
 
     String roomId = decodedToken.guid();
     Optional<ChatRoom> optionalRoom = DaoManager.getChatRoomDao().findByRoomId(roomId);
-
     if (optionalRoom.isEmpty()) {
       log.warn("No chat room found for message: {}", msg);
-      return;
+      return Optional.empty();
     }
 
     ChatRoom room = optionalRoom.get();
@@ -448,29 +423,12 @@ public class MainChatController {
 
     if (changed) {
       log.info("Room settings changed for room '{}'. Updating...", roomId);
-      log.info("Cipher: {}", decodedToken.cipher());
-      log.info("Cipher mode: {}", decodedToken.cipherMode());
-      log.info("Padding mode: {}", decodedToken.paddingMode());
-      log.info("IV: {}", decodedToken.IV());
-
-      log.info("Cipher in room: {}", room.getCipher());
-      log.info("Cipher mode in room: {}", room.getCipherMode());
-      log.info("Padding mode in room: {}", room.getPaddingMode());
-      log.info("IV in room: {}", room.getIv());
-
 
       room.setCipher(decodedToken.cipher());
       room.setCipherMode(decodedToken.cipherMode());
       room.setPaddingMode(decodedToken.paddingMode());
       room.setIv(decodedToken.IV());
       room.setKeyBitLength(decodedToken.keyBitLength());
-
-      log.info("Cipher in room after: {}", room.getCipher());
-      log.info("Cipher mode in room after: {}", room.getCipherMode());
-      log.info("Padding mode in room after: {}", room.getPaddingMode());
-      log.info("IV in room after: {}", room.getIv());
-      log.info("KeyBitLength after: {}", decodedToken.keyBitLength());
-
 
       DaoManager.getChatRoomDao().update(room);
 
@@ -505,26 +463,9 @@ public class MainChatController {
       }
     }
 
-    Context contextTextMessage = ContextFactory.getContext(room);
-
-    byte[] encodedData = Base64.getDecoder().decode(msg.getText());
-    Pair<byte[], byte[]> decrypted = contextTextMessage.encryptDecryptInner(encodedData, null, false);
-
-    Message message = Message.builder()
-            .roomId(roomId)
-            .sender(msg.getFromUserName())
-            .timestamp(msg.getDateTime())
-            .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
-            .build();
-
-    DaoManager.getMessageDao().insert(message);
-
-    if (currentChat != null && currentChat.getRoomId().equals(roomId)) {
-      messagesContainer.getChildren().add(createMessageBubble(message));
-      messagesScrollPane.layout();
-      messagesScrollPane.setVvalue(1.0);
-    }
+    return Optional.of(room);
   }
+
 
   @FXML
   private void onLogoutClick() {
@@ -662,26 +603,57 @@ public class MainChatController {
   }
 
   private Node createMessageBubble(Message message) {
-    Label label = new Label(String.format("[%s] %s",
-            Instant.ofEpochMilli(message.getTimestamp()),
-            message.getContent()
-    ));
-    label.setWrapText(true);
-    label.setMaxWidth(300);
-    label.setStyle("-fx-padding: 10; -fx-background-radius: 10;");
+    Node contentNode;
 
-    HBox bubble = new HBox(label);
+    if (message.getFilePath() != null) {
+      Path filePath = Paths.get(message.getFilePath());
+
+      contentNode = getHyperlink(message, filePath);
+    } else {
+      Label label = new Label(String.format("[%s] %s",
+              Instant.ofEpochMilli(message.getTimestamp()),
+              message.getContent()
+      ));
+      label.setWrapText(true);
+      label.setMaxWidth(300);
+      label.setStyle("-fx-padding: 10; -fx-background-radius: 10;");
+      contentNode = label;
+    }
+
+    HBox bubble = new HBox(contentNode);
     bubble.setPadding(new Insets(5));
 
     if (message.getSender().equals(currentUserName)) {
       bubble.setAlignment(Pos.CENTER_LEFT);
-      label.setStyle(label.getStyle() + "-fx-background-color: #d0ffd0;");
+      contentNode.setStyle("-fx-background-color: #d0ffd0; -fx-padding: 10; -fx-background-radius: 10;");
     } else {
       bubble.setAlignment(Pos.CENTER_RIGHT);
-      label.setStyle(label.getStyle() + "-fx-background-color: #d0d0ff;");
+      contentNode.setStyle("-fx-background-color: #d0d0ff; -fx-padding: 10; -fx-background-radius: 10;");
     }
 
     return bubble;
+  }
+
+  private static Hyperlink getHyperlink(Message message, Path filePath) {
+    Path parentDir = filePath.getParent();
+
+    String displayText = String.format("[%s] [File] %s",
+            Instant.ofEpochMilli(message.getTimestamp()),
+            filePath.getFileName()
+    );
+
+    Hyperlink folderLink = new Hyperlink(displayText);
+    folderLink.setWrapText(true);
+    folderLink.setMaxWidth(300);
+
+    folderLink.setOnAction(e -> {
+      try {
+        Desktop.getDesktop().open(parentDir.toFile());
+      } catch (IOException ex) {
+        ex.printStackTrace();
+      }
+    });
+    return folderLink;
   }
 
 
@@ -788,49 +760,64 @@ public class MainChatController {
     fileChooser.setTitle("Select file to send");
 
     File selectedFile = fileChooser.showOpenDialog(window);
-    if (selectedFile != null) {
-
-      log.info("Your chose: {}", selectedFile.getName());
-
-      ChatRoom room = currentChat;
-      if (room == null) return;
-
-      String token = RoomTokenEncoder.encode(
-              room.getRoomId(),
-              room.getCipher(),
-              room.getCipherMode(),
-              room.getPaddingMode(),
-              room.getIv(),
-              room.getKeyBitLength()
-      );
-
-      boolean delivered = false;
-
-      try {
-        delivered = grpcClient.sendFile(selectedFile, currentUserName, room.getOtherUser(), room, token)
-                .orTimeout(5, TimeUnit.SECONDS)
-                .get();
-      } catch (Exception e) {
-        log.info(e.getMessage());
-      }
-
-
-      log.info("is delivered???? : {}", delivered);
-      if(delivered) {
-        String savedPath = selectedFile.getAbsolutePath();
-        Message fileMessage = Message.builder()
-                .roomId(room.getRoomId())
-                .sender(currentUserName)
-                .timestamp(System.currentTimeMillis())
-                .filePath(savedPath)
-                .build();
-        // TODO: ПРодолжить!!!
-      }
-    } else {
-      log.info("Выбор файла отменён.");
+    if (selectedFile == null) {
+      log.info("File selection canceled");
+      return;
     }
-  }
 
+    Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+    confirmAlert.setTitle("Confirmation of file sending");
+    confirmAlert.setHeaderText("Are you sure you want to send this file?");
+    confirmAlert.setContentText(selectedFile.getName());
+
+    Optional<ButtonType> result = confirmAlert.showAndWait();
+    if (result.isEmpty() || result.get() != ButtonType.OK) {
+      log.info("The user cancelled the file submission.");
+      return;
+    }
+
+    log.info("File selected: {}", selectedFile.getName());
+
+    ChatRoom room = currentChat;
+    if (room == null) return;
+
+    String token = RoomTokenEncoder.encode(
+            room.getRoomId(),
+            room.getCipher(),
+            room.getCipherMode(),
+            room.getPaddingMode(),
+            room.getIv(),
+            room.getKeyBitLength()
+    );
+
+    boolean delivered = false;
+    try {
+      delivered = grpcClient.sendFile(selectedFile, currentUserName, room.getInterlocutor(currentUserName), room, token)
+              .orTimeout(5, TimeUnit.SECONDS)
+              .get();
+    } catch (Exception e) {
+      log.info("Error sending file: {}", e.getMessage());
+    }
+
+    if (delivered) {
+      Message fileMessage = Message.builder()
+              .roomId(room.getRoomId())
+              .sender(currentUserName)
+              .timestamp(System.currentTimeMillis())
+              .content("[File] " + selectedFile.getName())
+              .filePath(selectedFile.getAbsolutePath())
+              .build();
+
+      DaoManager.getMessageDao().insert(fileMessage);
+
+      messagesContainer.getChildren().add(createMessageBubble(fileMessage));
+      messagesScrollPane.layout();
+      messagesScrollPane.setVvalue(1.0);
+    } else {
+      log.info("File not delivered");
+    }
+
+  }
 
   @FXML
   private void onCloseSearchClick() {
@@ -944,7 +931,7 @@ public class MainChatController {
         DaoManager.getChatRoomDao().delete(roomId);
 
         if (otherUser != null) {
-          boolean isDelivered = grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.SELF_LEFT);
+          boolean isDelivered = grpcClient.sendControlMessage(currentUserName, currentChat.getInterlocutor(currentUserName), token, ChatProto.MessageType.SELF_LEFT);
           if (!isDelivered) {
             showAlert(Alert.AlertType.ERROR, "Other user left messenger!");
             return;
