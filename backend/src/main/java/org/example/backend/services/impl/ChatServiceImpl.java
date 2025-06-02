@@ -84,6 +84,7 @@ public class ChatServiceImpl extends ChatServiceGrpc.ChatServiceImplBase {
                         .setText(request.getText())
                         .setDateTime(request.getDateTime())
                         .setToken(request.getToken())
+                        .setPublicExponent(request.getPublicExponent())
                         .build();
 
 

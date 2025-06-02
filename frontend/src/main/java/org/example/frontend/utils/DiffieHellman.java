@@ -1,6 +1,7 @@
 package org.example.frontend.utils;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -12,7 +13,10 @@ public class DiffieHellman {
   @Getter
   private BigInteger publicComponent;
   @Getter
-  private BigInteger sharedSecret;
+  @Setter
+  private String publicComponentOther = null;
+  @Getter
+  private BigInteger sharedSecret = null;
 
   public DiffieHellman(String gStr, String pStr) {
     this.g = new BigInteger(gStr);

@@ -41,7 +41,8 @@ message SendMessageRequest {
   string text = 3;
   int64 date_time = 4;
   string token = 5;
-  MessageType type = 6;
+  string public_exponent = 6;
+  MessageType type = 7;
   // meta - info (token = GUID + CM + PM + IV) -> HMAC256
 }
 

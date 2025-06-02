@@ -83,7 +83,7 @@ public class GrpcClient {
     });
   }
 
-  public boolean sendMessage(String from, String to, String text, String token) {
+  public boolean sendMessage(String from, String to, String text, String token, String secret) {
     ChatProto.SendMessageRequest request = ChatProto.SendMessageRequest.newBuilder()
             .setFromUserName(from)
             .setToUserName(to)
@@ -91,6 +91,7 @@ public class GrpcClient {
             .setDateTime(System.currentTimeMillis())
             .setType(ChatProto.MessageType.TEXT)
             .setToken(token)
+            .setPublicExponent(secret)
             .build();
 
     ChatProto.SendMessageResponse response = blockingStub.sendMessage(request);

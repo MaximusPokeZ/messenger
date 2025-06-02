@@ -25,6 +25,7 @@ public class ContextFactory {
             throw new IllegalArgumentException("Chat room cannot be null!!!!");
         }
         log.info("content of current room: {}", room);
+        log.info("Cipher current ");
         CipherMode currentCipherMpde =
                 switch (room.getCipherMode()) {
                     case "ECB" -> CipherMode.ECB;

@@ -105,6 +105,7 @@ public class LoginController {
                     }
 
                     JwtStorage.setToken(token);
+                    log.info("JWT TOKEN {}", token); // TODO удалить потом!!!
                     JwtStorage.setUsername(username);
 
                     SceneManager.switchToMainScene();

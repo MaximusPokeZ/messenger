@@ -264,6 +264,7 @@ public class MainChatController {
 
       DiffieHellman dh = new DiffieHellman(g, p);
       dh.getKey(new BigInteger(msg.getPublicExponent()));
+      dh.setPublicComponentOther(msg.getPublicExponent());
       DiffieHellmanManager.put(roomId, dh);
 
       grpcClient.sendInitRoomRequest(
@@ -273,26 +274,29 @@ public class MainChatController {
       log.info("Room '{}' initialized with user '{}'", roomId, fromUser);
 
     } else {
-      DiffieHellman dh = new DiffieHellman(g, p);
-      if (DiffieHellmanManager.get(roomId) == null) {
+      DiffieHellman dhc = DiffieHellmanManager.get(roomId);
+      if (dhc == null) {
+        DiffieHellman dh = new DiffieHellman(g, p);
         dh.getKey(new BigInteger(msg.getPublicExponent()));
+        dh.setPublicComponentOther(msg.getPublicExponent());
         DiffieHellmanManager.put(roomId, dh);
         grpcClient.sendInitRoomRequest(
                 currentUserName, existing.get().getInterlocutor(currentUserName), token, dh.getPublicComponent().toString()
         );
-        log.info("Current username: {} and fromUser {} and currentChat.getInterlocutor {}", currentUserName, currentUserName, existing.get().getInterlocutor(currentUserName));
-        log.info("Room {} get public expon", roomId);
       } else {
-        DiffieHellmanManager.get(roomId).getKey(new BigInteger(msg.getPublicExponent()));
+        if (dhc.getSharedSecret() == null || !dhc.getPublicComponentOther().equals(msg.getPublicExponent())) {
+          grpcClient.sendInitRoomRequest(
+                  currentUserName, existing.get().getInterlocutor(currentUserName), token, dhc.getPublicComponent().toString());
+        }
+        dhc.getKey(new BigInteger(msg.getPublicExponent()));
+        dhc.setPublicComponentOther(msg.getPublicExponent());
+
         log.info("Shared key get for room {} ", roomId);
       }
     }
   }
 
-
-
   private void handleFileMessage(ChatProto.ChatMessage msg) {
-
     RoomTokenEncoder.DecodedRoomToken decodedToken;
     try {
       decodedToken = RoomTokenEncoder.decode(msg.getToken());
@@ -314,7 +318,8 @@ public class MainChatController {
     boolean changed = !room.getCipher().equals(decodedToken.cipher()) ||
             !room.getCipherMode().equals(decodedToken.cipherMode()) ||
             !room.getPaddingMode().equals(decodedToken.paddingMode()) ||
-            !room.getIv().equals(decodedToken.IV());
+            !room.getIv().equals(decodedToken.IV()) ||
+            !room.getKeyBitLength().equals(decodedToken.keyBitLength());
 
     if (changed) {
       log.info("Room settings changed for room '{}'. Updating...", roomId);
@@ -333,11 +338,13 @@ public class MainChatController {
       room.setCipherMode(decodedToken.cipherMode());
       room.setPaddingMode(decodedToken.paddingMode());
       room.setIv(decodedToken.IV());
+      room.setKeyBitLength(decodedToken.keyBitLength());
 
       log.info("Cipher in room after: {}", room.getCipher());
       log.info("Cipher mode in room after: {}", room.getCipherMode());
       log.info("Padding mode in room after: {}", room.getPaddingMode());
       log.info("IV in room after: {}", room.getIv());
+      log.info("KeyBitLength after: {}", decodedToken.keyBitLength());
 
 
       DaoManager.getChatRoomDao().update(room);
@@ -355,7 +362,23 @@ public class MainChatController {
         modeLabel.setText("Mode: " + room.getCipherMode());
         paddingLabel.setText("Padding: " + room.getPaddingMode());
         ivLabel.setText("IV: " + room.getIv());
+        keyLengthLabel.setText("Key length bits: " + room.getKeyBitLength());
         log.info("Changed room settings for {}", roomId);
+      }
+    }
+
+    String g = "5";
+    String p = "23";
+    DiffieHellman DH = DiffieHellmanManager.get(roomId);
+    if (DH == null) {
+      DiffieHellman dh = new DiffieHellman(g, p);
+      dh.getKey(new BigInteger(msg.getPublicExponent()));
+      dh.setPublicComponentOther(msg.getPublicExponent());
+      DiffieHellmanManager.put(room.getRoomId(), dh);
+    } else {
+      if (DH.getSharedSecret() == null) {
+        DH.getKey(new BigInteger(msg.getPublicExponent()));
+        DH.setPublicComponentOther(msg.getPublicExponent());
       }
     }
 
@@ -425,7 +448,8 @@ public class MainChatController {
     boolean changed = !room.getCipher().equals(decodedToken.cipher()) ||
             !room.getCipherMode().equals(decodedToken.cipherMode()) ||
             !room.getPaddingMode().equals(decodedToken.paddingMode()) ||
-            !room.getIv().equals(decodedToken.IV());
+            !room.getIv().equals(decodedToken.IV()) ||
+            !room.getKeyBitLength().equals(decodedToken.keyBitLength());
 
     if (changed) {
       log.info("Room settings changed for room '{}'. Updating...", roomId);
@@ -444,11 +468,13 @@ public class MainChatController {
       room.setCipherMode(decodedToken.cipherMode());
       room.setPaddingMode(decodedToken.paddingMode());
       room.setIv(decodedToken.IV());
+      room.setKeyBitLength(decodedToken.keyBitLength());
 
       log.info("Cipher in room after: {}", room.getCipher());
       log.info("Cipher mode in room after: {}", room.getCipherMode());
       log.info("Padding mode in room after: {}", room.getPaddingMode());
       log.info("IV in room after: {}", room.getIv());
+      log.info("KeyBitLength after: {}", decodedToken.keyBitLength());
 
 
       DaoManager.getChatRoomDao().update(room);
@@ -466,7 +492,23 @@ public class MainChatController {
         modeLabel.setText("Mode: " + room.getCipherMode());
         paddingLabel.setText("Padding: " + room.getPaddingMode());
         ivLabel.setText("IV: " + room.getIv());
+        keyLengthLabel.setText("Key length bits: " + room.getKeyBitLength());
         log.info("Changed room settings for {}", roomId);
+      }
+    }
+
+    String g = "5";
+    String p = "23";
+    DiffieHellman DH = DiffieHellmanManager.get(roomId);
+    if (DH == null) {
+      DiffieHellman dh = new DiffieHellman(g, p);
+      dh.getKey(new BigInteger(msg.getPublicExponent()));
+      dh.setPublicComponentOther(msg.getPublicExponent());
+      DiffieHellmanManager.put(room.getRoomId(), dh);
+    } else {
+      if (DH.getSharedSecret() == null) {
+        DH.getKey(new BigInteger(msg.getPublicExponent()));
+        DH.setPublicComponentOther(msg.getPublicExponent());
       }
     }
 
@@ -590,6 +632,11 @@ public class MainChatController {
     ChatRoom updatedRoom = updatedRoomOpt.get();
     this.currentChat = updatedRoom;
 
+    DiffieHellman dh = DiffieHellmanManager.get(currentChat.getRoomId());
+    if (dh == null || dh.getSharedSecret() == null) {
+      sendInitRoomRequest(currentChat.getInterlocutor(currentUserName), currentChat.getRoomId());
+    }
+
     sendButton.setDisable(false);
     sendFileButton.setDisable(false);
     messageInputField.setDisable(false);
@@ -706,17 +753,27 @@ public class MainChatController {
     log.info("Cipher mode before send: {}", room.getCipherMode());
     log.info("Padding mode before send: {}", room.getPaddingMode());
     log.info("IV before send: {}", room.getIv());
+    log.info("Key bit before send: {}", room.getKeyBitLength());
 
     long timestamp = System.currentTimeMillis();
 
     log.info("Current User: {}", currentUserName);
     log.info("Other User: {}", room.getOtherUser());
     log.info("Current room User: {}", room.getOwner());
+
+    String g = "5";
+    String p = "23";
+    if (DiffieHellmanManager.get(room.getRoomId()) == null) {
+      DiffieHellman dh = new DiffieHellman(g, p);
+      DiffieHellmanManager.put(room.getRoomId(), dh);
+    }
+
     boolean delivered = grpcClient.sendMessage(
             currentUserName,
             room.getInterlocutor(currentUserName),
             cipherText,
-            token
+            token,
+            DiffieHellmanManager.get(room.getRoomId()).getPublicComponent().toString()
     );
 
     if (delivered) {
@@ -847,13 +904,21 @@ public class MainChatController {
       result.ifPresent(choice -> {
         switch (choice) {
           case "Delete chat" -> {
+            boolean isDelivered = grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.DELETE_CHAT);
+            if (!isDelivered) {
+              showAlert(Alert.AlertType.ERROR, "Other user left messenger!");
+              break;
+            }
             DaoManager.getMessageDao().deleteByRoomId(roomId);
             DaoManager.getChatRoomDao().delete(roomId);
-
-            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.DELETE_CHAT);
             reloadChatListUI(true);
           }
           case "Remove other" -> {
+            boolean isDelivered = grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.REMOVE_USER);
+            if (!isDelivered) {
+              showAlert(Alert.AlertType.ERROR, "Other user left messenger!");
+              break;
+            }
             ChatRoom updatedRoom = DaoManager.getChatRoomDao().findByRoomId(roomId)
                     .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
@@ -861,16 +926,19 @@ public class MainChatController {
             DaoManager.getChatRoomDao().update(updatedRoom);
             currentChat = updatedRoom;
 
-            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.REMOVE_USER);
             inviteUserButton.setVisible(true);
             reloadChatListUI(false);
             openChat(currentChat);
           }
           case "Leave chat" -> {
+            boolean isDelivered = grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.OWNER_LEFT);
+            if (!isDelivered) {
+              showAlert(Alert.AlertType.ERROR, "Other user left messenger!");
+              break;
+            }
             DaoManager.getMessageDao().deleteByRoomId(roomId);
             DaoManager.getChatRoomDao().delete(roomId);
 
-            grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.OWNER_LEFT);
             reloadChatListUI(true);
           }
         }
@@ -886,7 +954,13 @@ public class MainChatController {
         DaoManager.getMessageDao().deleteByRoomId(roomId);
         DaoManager.getChatRoomDao().delete(roomId);
 
-        if (otherUser != null) grpcClient.sendControlMessage(currentUserName, currentChat.getInterlocutor(currentUserName), token, ChatProto.MessageType.SELF_LEFT);
+        if (otherUser != null) {
+          boolean isDelivered = grpcClient.sendControlMessage(currentUserName, otherUser, token, ChatProto.MessageType.SELF_LEFT);
+          if (!isDelivered) {
+            showAlert(Alert.AlertType.ERROR, "Other user left messenger!");
+            return;
+          }
+        }
 
         messageInputField.setDisable(true);
         sendButton.setDisable(true);

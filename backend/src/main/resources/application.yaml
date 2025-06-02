@@ -44,11 +44,11 @@ jwt:
   expiration-ms: 1440m
   issuer: server_back
 
-logging:
-  level:
-    root : WARN
-    io.grpc: WARN
-    org.springframework.security: WARN
+#logging:
+#  level:
+#    root : WARN
+#    io.grpc: INFO
+#    org.springframework.security: WARN
 
 
 grpc:
