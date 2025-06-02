@@ -19,4 +19,6 @@ public class DiffieHellmanManager {
   public static void remove(String roomId) {
     dhMap.remove(roomId);
   }
+
+  private DiffieHellmanManager() {}
 }

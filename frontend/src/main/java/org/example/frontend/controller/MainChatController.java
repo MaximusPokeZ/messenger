@@ -117,12 +117,13 @@ public class MainChatController {
     DBManager.initInstance(currentUserName);
     DaoManager.init();
 
+    chatRooms = DaoManager.getChatRoomDao().findAll();
+
     userLabel.setText(currentUserName);
     chatDetailsPane.setDisable(true);
     leaveChatButton.setDisable(true);
     inviteUserButton.setVisible(false);
 
-    chatRooms = DaoManager.getChatRoomDao().findAll();
     updateChatListUI();
 
     chatListView.setOnMouseClicked(event -> {
@@ -162,6 +163,36 @@ public class MainChatController {
             Throwable::printStackTrace
     );
 
+    for (ChatRoom room : chatRooms) {
+      String roomId = room.getRoomId();
+      String token = RoomTokenEncoder.encode(
+              room.getRoomId(),
+              room.getCipher(),
+              room.getCipherMode(),
+              room.getPaddingMode(),
+              room.getIv(),
+              room.getKeyBitLength()
+      );
+
+      String g = "5";
+      String p = "23";
+      DiffieHellman dh = new DiffieHellman(g, p);
+      String publicComponent = dh.getPublicComponent().toString();
+
+      log.info("Start DH for room id {}", roomId);
+
+      boolean isDelivered = grpcClient.sendInitRoomRequest(
+              currentUserName,
+              room.getInterlocutor(currentUserName),
+              token,
+              publicComponent
+      );
+
+      if (isDelivered) {
+        log.info("Delivered public component {}", publicComponent);
+        DiffieHellmanManager.put(roomId, dh);
+      }
+    }
 
     searchResultsPanel.setVisible(false);
   }
@@ -213,6 +244,8 @@ public class MainChatController {
 
     Optional<ChatRoom> existing = DaoManager.getChatRoomDao().findByRoomId(roomId);
 
+    String g = "5";
+    String p = "23";
     if (existing.isEmpty()) {
       ChatRoom room = ChatRoom.builder()
               .roomId(roomId)
@@ -229,8 +262,6 @@ public class MainChatController {
       chatRooms.add(room);
       updateChatListUI();
 
-      String g = "5";
-      String p = "23";
       DiffieHellman dh = new DiffieHellman(g, p);
       dh.getKey(new BigInteger(msg.getPublicExponent()));
       DiffieHellmanManager.put(roomId, dh);
@@ -242,15 +273,19 @@ public class MainChatController {
       log.info("Room '{}' initialized with user '{}'", roomId, fromUser);
 
     } else {
-      DiffieHellman dh = DiffieHellmanManager.get(roomId);
-      if (dh == null) {
-        log.warn("No DH context found for room: {}", roomId);
-        return;
+      DiffieHellman dh = new DiffieHellman(g, p);
+      if (DiffieHellmanManager.get(roomId) == null) {
+        dh.getKey(new BigInteger(msg.getPublicExponent()));
+        DiffieHellmanManager.put(roomId, dh);
+        grpcClient.sendInitRoomRequest(
+                currentUserName, existing.get().getInterlocutor(currentUserName), token, dh.getPublicComponent().toString()
+        );
+        log.info("Current username: {} and fromUser {} and currentChat.getInterlocutor {}", currentUserName, currentUserName, existing.get().getInterlocutor(currentUserName));
+        log.info("Room {} get public expon", roomId);
+      } else {
+        DiffieHellmanManager.get(roomId).getKey(new BigInteger(msg.getPublicExponent()));
+        log.info("Shared key get for room {} ", roomId);
       }
-
-      dh.getKey(new BigInteger(msg.getPublicExponent()));
-
-      log.info("Shared key get for room {} ", roomId);
     }
   }
 
