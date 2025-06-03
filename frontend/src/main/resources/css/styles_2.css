@@ -413,3 +413,44 @@
     -fx-font-size: 12px;
     -fx-padding: 4 0 0 0;
 }
+
+
+.custom-dialog {
+    -fx-background-color: #2b2b2b;
+    -fx-border-color: #444;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 15, 0, 0, 4);
+}
+
+.custom-dialog > .button-bar > .container {
+    -fx-background-color: #2b2b2b;
+}
+
+.custom-dialog > .content.label {
+    -fx-text-fill: #dddddd;
+    -fx-font-size: 14px;
+    -fx-padding: 10 0 0 0;
+}
+
+/* Стили для списка пользователей */
+.search-list-view .list-cell {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #dddddd;
+    -fx-padding: 8 10;
+}
+
+.search-list-view .list-cell:selected {
+    -fx-background-color: #61afef;
+    -fx-text-fill: #1e2124;
+}
+
+.search-list-view .scroll-bar:vertical {
+    -fx-background-color: #3c3f41;
+}
+
+.search-list-view .scroll-bar:vertical .thumb {
+    -fx-background-color: #50545a;
+    -fx-background-radius: 4;
+}

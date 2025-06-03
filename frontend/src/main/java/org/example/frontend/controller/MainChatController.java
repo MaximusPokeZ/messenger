@@ -52,24 +52,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javafx.scene.media.*;
-import javafx.scene.image.*;
 import javafx.scene.layout.*;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.scene.Cursor;
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
+
 
 @Slf4j
 public class MainChatController {
@@ -652,8 +646,12 @@ public class MainChatController {
       Path filePath = Paths.get(message.getFilePath());
       contentNode = createMediaContent(message, filePath);
     } else {
+      DateTimeFormatter timeFormatter = DateTimeFormatter
+              .ofPattern("HH:mm:ss")
+              .withZone(ZoneId.systemDefault());
+
       Label label = new Label(String.format("[%s] %s",
-              Instant.ofEpochMilli(message.getTimestamp()),
+              timeFormatter.format(Instant.ofEpochMilli(message.getTimestamp())),
               message.getContent()
       ));
       label.setWrapText(true);
@@ -666,13 +664,13 @@ public class MainChatController {
     bubble.setPadding(new Insets(5));
 
     if (message.getSender().equals(currentUserName)) {
-      bubble.setAlignment(Pos.CENTER_LEFT);
-      contentNode.setStyle(contentNode.getStyle() +
-              "; -fx-background-color: #d0ffd0; -fx-padding: 10; -fx-background-radius: 10;");
-    } else {
       bubble.setAlignment(Pos.CENTER_RIGHT);
       contentNode.setStyle(contentNode.getStyle() +
-              "; -fx-background-color: #d0d0ff; -fx-padding: 10; -fx-background-radius: 10;");
+              "; -fx-background-color: #49096e; -fx-padding: 10; -fx-background-radius: 10;");
+    } else {
+      bubble.setAlignment(Pos.CENTER_LEFT);
+      contentNode.setStyle(contentNode.getStyle() +
+              "; -fx-background-color: #5c1c1c; -fx-padding: 10; -fx-background-radius: 10;");
     }
 
     return bubble;
@@ -1052,8 +1050,12 @@ public class MainChatController {
   private static Hyperlink getHyperlink(Message message, Path filePath) {
     Path parentDir = filePath.getParent();
 
+    DateTimeFormatter timeFormatter = DateTimeFormatter
+            .ofPattern("HH:mm:ss")
+            .withZone(ZoneId.systemDefault());
+
     String displayText = String.format("[%s] [File] %s",
-            Instant.ofEpochMilli(message.getTimestamp()),
+            timeFormatter.format(Instant.ofEpochMilli(message.getTimestamp())),
             filePath.getFileName()
     );
 
@@ -1065,7 +1067,8 @@ public class MainChatController {
       try {
         Desktop.getDesktop().open(parentDir.toFile());
       } catch (IOException ex) {
-        ex.printStackTrace();
+        log.info("cannot find such file!");
+        throw new RuntimeException("no such file");
       }
     });
     return folderLink;
@@ -1296,7 +1299,7 @@ public class MainChatController {
       dialog.setHeaderText("You are the chat owner. Select an action:");
 
 
-      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
 
       dialog.getDialogPane().getStylesheets().add(stylesPath);
 
@@ -1366,7 +1369,7 @@ public class MainChatController {
       confirm.setContentText("All messages will be deleted");
 
 
-      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+      String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
 
       confirm.getDialogPane().getStylesheets().add(stylesPath);
 
@@ -1449,6 +1452,9 @@ public class MainChatController {
     dialog.setTitle("Invite User");
     dialog.setHeaderText("Select a user to invite to chat:");
 
+    dialog.getDialogPane().getStyleClass().add("custom-dialog");
+    dialog.getDialogPane().setStyle("-fx-background-color: #2b2b2b;");
+
     VBox vbox = new VBox(10);
     vbox.setPadding(new Insets(20));
 
@@ -1520,10 +1526,20 @@ public class MainChatController {
       }
     });
 
+    Label searchLabel = new Label("Search:");
+    searchLabel.setStyle("-fx-text-fill: #ffffff;");
+    Label usersLabel = new Label("Users:");
+    usersLabel.setStyle("-fx-text-fill: #ffffff;");
+
+    searchField.getStyleClass().add("input-field");
+
+
+    userListView.getStyleClass().add("search-list-view");
+
     vbox.getChildren().addAll(
-            new Label("Search:"),
+            searchLabel,
             searchField,
-            new Label("Users:"),
+            usersLabel,
             userListView
     );
 
@@ -1531,6 +1547,8 @@ public class MainChatController {
 
     ButtonType inviteButtonType = new ButtonType("Invite", ButtonBar.ButtonData.OK_DONE);
     ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+
     dialog.getDialogPane().getButtonTypes().addAll(inviteButtonType, cancelButtonType);
 
     Platform.runLater(searchField::requestFocus);
@@ -1546,6 +1564,8 @@ public class MainChatController {
     inviteButton.disableProperty().bind(
             userListView.getSelectionModel().selectedItemProperty().isNull()
     );
+
+    inviteButton.getStyleClass().add("primary-button");
 
     Optional<String> result = dialog.showAndWait();
     result.ifPresent(selectedUser -> {

@@ -45,7 +45,7 @@ public class SceneManager {
     FXMLLoader fxmlLoader = new FXMLLoader(SceneManager.class.getResource(fxmlPath));
     Scene scene = new Scene(fxmlLoader.load(), width, height);
 
-    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles.css")).toExternalForm();
+    String stylesPath = Objects.requireNonNull(SceneManager.class.getResource("/css/styles_2.css")).toExternalForm();
     scene.getStylesheets().add(stylesPath);
 
     currentStage.setTitle(title);
