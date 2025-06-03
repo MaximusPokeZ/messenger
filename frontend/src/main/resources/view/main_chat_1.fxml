@@ -24,7 +24,7 @@
                 <padding>
                     <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
                 </padding>
-                <Label text="Secure Chat" styleClass="header-label">
+                <Label text="TalkSafe" styleClass="header-label">
                     <font>
                         <Font name="System Bold" size="18.0"/>
                     </font>
@@ -55,10 +55,8 @@
 
     <center>
         <HBox>
-
-
             <VBox styleClass="chat-list-container">
-                <Label text="Your chats" styleClass="subheader-label">
+                <Label text="My chats" styleClass="subheader-label">
                     <font>
                         <Font name="System Bold" size="14.0"/>
                     </font>

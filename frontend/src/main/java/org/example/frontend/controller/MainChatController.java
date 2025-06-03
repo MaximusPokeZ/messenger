@@ -57,26 +57,17 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javafx.scene.media.*;
-import javafx.scene.image.*;
 import javafx.scene.layout.*;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.scene.Cursor;
-import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.Instant;
 
 @Slf4j
 public class MainChatController {
 
   private final GrpcClient grpcClient = GrpcClient.getInstance();
-  public Label keyLengthLabel;
-
+  @FXML
+  private Label keyLengthLabel;
   @FXML
   private Button inviteUserButton;
   @FXML
@@ -94,11 +85,7 @@ public class MainChatController {
   @FXML
   private Label userLabel;
   @FXML
-  private Button logoutButton;
-  @FXML
   public TextField searchField;
-  @FXML
-  private Button searchButton;
   @FXML
   private ListView<ChatRoom> chatListView;
   @FXML
@@ -117,8 +104,6 @@ public class MainChatController {
   public VBox searchResultsPanel;
   @FXML
   public ListView<String> searchResultsListView;
-  @FXML
-  private Button closeSearchButton;
 
   private ChatRoom currentChat;
 
@@ -149,8 +134,6 @@ public class MainChatController {
     leaveChatButton.setDisable(true);
     inviteUserButton.setVisible(false);
 
-    updateChatListUI();
-
     chatListView.setOnMouseClicked(event -> {
       if (event.getClickCount() == 1) {
         ChatRoom room = chatListView.getSelectionModel().getSelectedItem();
@@ -167,7 +150,17 @@ public class MainChatController {
         if (empty || room == null) {
           setText(null);
         } else {
-          setText(room.getInterlocutor(currentUserName) + (room.getLastMessage() != null ? " — " + room.getLastMessage() + " - " + MessageUtils.formatTime(room.getLastMessageTime()) : ""));
+          String message = room.getLastMessage();
+          if (message != null && message.length() > 10) {
+            message = message.substring(0, 10) + "...";
+          }
+
+          String time = room.getLastMessage() != null
+                  ? " - " + MessageUtils.formatTime(room.getLastMessageTime())
+                  : "";
+
+          setText(room.getInterlocutor(currentUserName) +
+                  (message != null ? " — " + message + time : ""));
         }
       }
     });
@@ -205,6 +198,8 @@ public class MainChatController {
       log.info("Start DH for room id {}", roomId);
 
       searchResultsPanel.setVisible(false);
+
+      updateChatListUI();
 
       if (room.getInterlocutor(currentUserName) == null) return;
 
@@ -376,7 +371,7 @@ public class MainChatController {
                 .filePath(out.toString())
                 .build();
 
-        DaoManager.getMessageDao().insert(message);
+        updateLastMessage(room, message);
 
         if (currentChat != null && currentChat.getRoomId().equals(room.getRoomId())) {
           messagesContainer.getChildren().add(createMessageBubble(message));
@@ -393,7 +388,9 @@ public class MainChatController {
       showAlert(Alert.AlertType.ERROR, "File processing error");
       FileTransferState failedState = fileTransfers.remove(msg.getFileName());
       if (failedState != null) {
-        try { failedState.outputStream.close(); } catch (IOException ignored) {}
+        try { failedState.outputStream.close(); } catch (IOException ignored) {
+          log.error("Failed to close stream");
+        }
       }
     }
   }
@@ -403,7 +400,6 @@ public class MainChatController {
     if (optionalRoom.isEmpty()) return;
 
     ChatRoom room = optionalRoom.get();
-
 
     Context contextTextMessage;
     try {
@@ -423,7 +419,7 @@ public class MainChatController {
             .content(new String(contextTextMessage.removePadding(decrypted.getKey())))
             .build();
 
-    DaoManager.getMessageDao().insert(message);
+    updateDbLastMessage(room, message);
 
     if (currentChat != null && currentChat.getRoomId().equals(room.getRoomId())) {
       messagesContainer.getChildren().add(createMessageBubble(message));
@@ -515,9 +511,8 @@ public class MainChatController {
     } catch (IOException e) {
       throw new RuntimeException("Failed to log out: " + e);
     } catch (StatusRuntimeException e) {
-      log.info("HERE");
       if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
-        System.err.println("Сервер недоступен: " + e.getMessage());
+        log.error("Server unavailable: {}", e.getMessage());
       }
     } catch (Exception e) {
       log.info("io.grpc disabled");
@@ -659,7 +654,7 @@ public class MainChatController {
       contentNode = createMediaContent(message, filePath);
     } else {
       Label label = new Label(String.format("[%s] %s",
-              Instant.ofEpochMilli(message.getTimestamp()),
+              MessageUtils.formatTime(message.getTimestamp()),
               message.getContent()
       ));
       label.setWrapText(true);
@@ -779,15 +774,15 @@ public class MainChatController {
       mediaView.setPreserveRatio(true);
 
       mediaPlayer.setOnError(() -> {
-        System.err.println("Media Player Error: " + mediaPlayer.getError());
+        log.error("Media Player Error: {}", String.valueOf(mediaPlayer.getError()));
       });
 
       media.setOnError(() -> {
-        System.err.println("Media Error: " + media.getError());
+        log.error("Media Error: {}", String.valueOf(media.getError()));
       });
 
       mediaPlayer.setOnReady(() -> {
-        System.out.println("Media ready. Duration: " + mediaPlayer.getTotalDuration());
+        log.error("Media ready. Duration: {}", mediaPlayer.getTotalDuration());
       });
 
       HBox controls = createVideoControls(mediaPlayer);
@@ -1170,10 +1165,7 @@ public class MainChatController {
               .content(text)
               .build();
 
-      DaoManager.getMessageDao().insert(message);
-      messagesContainer.getChildren().add(createMessageBubble(message));
-      messagesScrollPane.layout();
-      messagesScrollPane.setVvalue(1.0);
+      updateLastMessage(room, message);
     }
   }
 
@@ -1233,15 +1225,37 @@ public class MainChatController {
               .filePath(selectedFile.getAbsolutePath())
               .build();
 
-      DaoManager.getMessageDao().insert(fileMessage);
-
-      messagesContainer.getChildren().add(createMessageBubble(fileMessage));
-      messagesScrollPane.layout();
-      messagesScrollPane.setVvalue(1.0);
+      updateLastMessage(room, fileMessage);
     } else {
       log.info("File not delivered");
     }
 
+  }
+
+  private void updateLastMessage(ChatRoom room, Message fileMessage) {
+    updateDbLastMessage(room, fileMessage);
+
+    messagesContainer.getChildren().add(createMessageBubble(fileMessage));
+    messagesScrollPane.layout();
+    messagesScrollPane.setVvalue(1.0);
+  }
+
+  private void updateDbLastMessage(ChatRoom room, Message fileMessage) {
+    DaoManager.getMessageDao().insert(fileMessage);
+
+    room.setLastMessage(fileMessage.getContent());
+    room.setLastMessageTime(fileMessage.getTimestamp());
+
+    DaoManager.getChatRoomDao().update(room);
+
+    for (int i = 0; i < chatRooms.size(); i++) {
+      if (chatRooms.get(i).getRoomId().equals(room.getRoomId())) {
+        chatRooms.set(i, room);
+        break;
+      }
+    }
+
+    updateChatListUI();
   }
 
   @FXML

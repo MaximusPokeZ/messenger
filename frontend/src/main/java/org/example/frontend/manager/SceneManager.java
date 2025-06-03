@@ -20,7 +20,7 @@ public class SceneManager {
   private static Stage currentStage;
 
   public static void switchToLoginScene() throws IOException {
-    switchScene("/view/login_1.fxml", "Super-Secure-Chat - Login", 440, 560);
+    switchScene("/view/login_1.fxml", "TalkSafe - Login", 440, 560);
 
     currentStage.setResizable(false);
     ImageView view = new ImageView();
@@ -29,12 +29,12 @@ public class SceneManager {
   }
 
   public static void switchToRegisterScene() throws IOException {
-    switchScene("/view/register_1.fxml", "Super-Secure-Chat - Register", 440, 560);
+    switchScene("/view/register_1.fxml", "TalkSafe - Register", 440, 560);
     currentStage.setResizable(false);
   }
 
   public static void switchToMainScene() throws IOException {
-    switchScene("/view/main_chat_1.fxml", "Super-Secure-Chat - Main", 1100, 700);
+    switchScene("/view/main_chat_1.fxml", "TalkSafe - Main", 1100, 700);
   }
 
   private static void switchScene(String fxmlPath, String title, double width , double height) throws IOException {

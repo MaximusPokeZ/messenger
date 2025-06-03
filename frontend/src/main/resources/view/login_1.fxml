@@ -24,7 +24,7 @@
           maxWidth="Infinity"
           VBox.vgrow="ALWAYS">
 
-        <Label styleClass="login-title" text="Secure Chat">
+        <Label styleClass="login-title" text="TalkSafe">
             <font>
                 <Font name="System Bold" size="24.0"/>
             </font>
