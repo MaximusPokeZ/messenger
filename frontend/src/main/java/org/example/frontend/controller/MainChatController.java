@@ -204,6 +204,10 @@ public class MainChatController {
 
       log.info("Start DH for room id {}", roomId);
 
+      searchResultsPanel.setVisible(false);
+
+      if (room.getInterlocutor(currentUserName) == null) return;
+
       boolean isDelivered = grpcClient.sendInitRoomRequest(
               currentUserName,
               room.getInterlocutor(currentUserName),
@@ -216,8 +220,6 @@ public class MainChatController {
         DiffieHellmanManager.put(roomId, dh);
       }
     }
-
-    searchResultsPanel.setVisible(false);
   }
 
   private void handleOwnerLeft(ChatProto.ChatMessage msg) {
@@ -610,8 +612,12 @@ public class MainChatController {
     this.currentChat = updatedRoom;
 
     DiffieHellman dh = DiffieHellmanManager.get(currentChat.getRoomId());
-    if (dh == null || dh.getSharedSecret() == null) {
+    if ((dh == null || dh.getSharedSecret() == null) && currentChat.getInterlocutor(currentUserName) != null) {
       sendInitRoomRequest(currentChat.getInterlocutor(currentUserName), currentChat.getRoomId());
+    }
+
+    if (currentChat.getInterlocutor(currentUserName) == null) {
+      inviteUserButton.setVisible(true);
     }
 
     sendButton.setDisable(false);
